@@ -153,7 +153,9 @@ export const api = {
     const totalBalance = localAccounts.reduce((acc, a) => acc + a.currentBalance, 0);
     const monthIncome = localTransactions.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0);
     const monthExpense = localTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
-    const openInvoicesTotal = 399.90;
+    const openInvoicesTotal = localTransactions
+      .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid)
+      .reduce((acc, t) => acc + t.amount, 0);
 
     return {
       totalBalance,
@@ -190,6 +192,82 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {}
     return localCards;
+  },
+
+  async createCard(cardData: Partial<CreditCard>): Promise<CreditCard> {
+    try {
+      const res = await fetch(`${API_BASE}/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cardData)
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
+    const newCard: CreditCard = {
+      id: 'card-' + Date.now(),
+      name: cardData.name || 'Novo Cartão',
+      bank: cardData.bank || 'nubank',
+      limitTotal: cardData.limitTotal || 2000,
+      closingDay: cardData.closingDay || 25,
+      dueDay: cardData.dueDay || 5,
+      color: cardData.color || '#820AD1'
+    };
+    localCards.push(newCard);
+    return newCard;
+  },
+
+  async deleteCard(cardId: string): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/cards/${cardId}`, { method: 'DELETE' });
+    } catch (e) {}
+    localCards = localCards.filter(c => c.id !== cardId);
+  },
+
+  async updateAccountBalance(accountId: string, newBalance: number): Promise<Account> {
+    try {
+      const res = await fetch(`${API_BASE}/accounts/${accountId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentBalance: newBalance })
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
+    const acc = localAccounts.find(a => a.id === accountId);
+    if (acc) {
+      acc.currentBalance = newBalance;
+    }
+    return acc || localAccounts[0];
+  },
+
+  async payInvoice(cardId: string, accountId: string, amount: number, invoiceId: string = 'inv-atual'): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/cards/${cardId}/invoices/${invoiceId}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, amount })
+      });
+    } catch (e) {}
+
+    // Deduz o valor da conta bancária escolhida
+    const acc = localAccounts.find(a => a.id === accountId);
+    if (acc) {
+      acc.currentBalance = Math.max(0, acc.currentBalance - amount);
+    }
+
+    // Registra a transação de pagamento de fatura
+    const payTx: Transaction = {
+      id: 'tx-pay-' + Date.now(),
+      description: 'Pagamento de Fatura Cartão',
+      amount: amount,
+      date: new Date().toISOString().split('T')[0],
+      type: 'EXPENSE',
+      paymentMethod: 'DEBIT_CARD',
+      account: acc,
+      isPaid: true
+    };
+    localTransactions.unshift(payTx);
   },
 
   async getCategories(): Promise<Category[]> {

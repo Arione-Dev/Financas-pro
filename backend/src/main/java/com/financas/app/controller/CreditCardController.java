@@ -36,7 +36,19 @@ public class CreditCardController {
         User user = userRepository.findAll().stream().findFirst().orElseGet(() ->
                 userRepository.save(User.builder().name("Usuário").email("user@financas.app").build()));
         card.setUser(user);
+        if (card.getIsActive() == null) {
+            card.setIsActive(true);
+        }
         return ResponseEntity.ok(creditCardRepository.save(card));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCard(@PathVariable UUID id) {
+        creditCardRepository.findById(id).ifPresent(c -> {
+            c.setIsActive(false);
+            creditCardRepository.save(c);
+        });
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/invoices")
