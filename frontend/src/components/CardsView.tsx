@@ -34,30 +34,30 @@ export const CardsView: React.FC<CardsViewProps> = ({ cards, transactions, isPri
             <div
               key={c.id}
               onClick={() => setSelectedCardId(c.id)}
-              className={`p-5 rounded-3xl cursor-pointer transition-all border relative overflow-hidden ${
+              className={`p-6 rounded-3xl cursor-pointer transition-all border relative overflow-hidden ${
                 isSelected
-                  ? 'border-indigo-500 shadow-xl shadow-indigo-600/20 bg-gradient-to-br from-indigo-900/90 via-slate-900 to-slate-950 text-white'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                  ? 'border-indigo-500 shadow-2xl shadow-indigo-600/30 bg-gradient-to-br from-indigo-700 via-indigo-800 to-slate-900 text-white ring-2 ring-indigo-500/50'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700 text-slate-900 dark:text-white'
               }`}
             >
               <div className="flex items-center justify-between mb-6">
-                <span className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <span className={`font-bold text-sm flex items-center gap-2 ${isSelected ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                   <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: c.color }} />
                   {c.name}
                 </span>
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" /> Virtual / Físico
+                <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSelected ? 'text-indigo-200' : 'text-slate-600 dark:text-slate-400'}`}>
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Virtual / Físico
                 </span>
               </div>
 
               <div className="flex justify-between items-end">
                 <div>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Limite Total</span>
-                  <p className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{formatCurrency(c.limitTotal)}</p>
+                  <span className={`text-[11px] font-medium ${isSelected ? 'text-indigo-200' : 'text-slate-500 dark:text-slate-400'}`}>Limite Total</span>
+                  <p className={`text-xl font-extrabold ${isSelected ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>{formatCurrency(c.limitTotal)}</p>
                 </div>
-                <div className="text-right text-xs text-slate-500 dark:text-slate-400">
-                  <p>Fecha dia <strong className="text-slate-700 dark:text-slate-200">{c.closingDay}</strong></p>
-                  <p>Vence dia <strong className="text-slate-700 dark:text-slate-200">{c.dueDay}</strong></p>
+                <div className={`text-right text-xs ${isSelected ? 'text-indigo-100 font-medium' : 'text-slate-600 dark:text-slate-400'}`}>
+                  <p>Fecha dia <strong className={isSelected ? 'text-white font-bold' : 'text-slate-800 dark:text-slate-200'}>{c.closingDay}</strong></p>
+                  <p>Vence dia <strong className={isSelected ? 'text-white font-bold' : 'text-slate-800 dark:text-slate-200'}>{c.dueDay}</strong></p>
                 </div>
               </div>
             </div>
@@ -70,10 +70,10 @@ export const CardsView: React.FC<CardsViewProps> = ({ cards, transactions, isPri
         <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xl space-y-4 transition-colors">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
-              <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Fatura de Outubro / 2026 (Atual)</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Fechamento em {selectedCard.closingDay}/10 • Vencimento em {selectedCard.dueDay}/11</p>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-200">Fatura de Outubro / 2026 (Atual)</h3>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Fechamento em {selectedCard.closingDay}/10 • Vencimento em {selectedCard.dueDay}/11</p>
             </div>
-            <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full">
+            <span className="text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-3 py-1 rounded-full">
               Fatura Aberta
             </span>
           </div>
