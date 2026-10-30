@@ -9,3 +9,4 @@ public record AuthResponse(
     String avatarUrl,
     String token
 ) {}
+

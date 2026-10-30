@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User as UserIcon, Mail, Lock, Sparkles, ArrowRight, Sun, Moon, Users } from 'lucide-react';
+import { User as UserIcon, Mail, Lock, ArrowRight, Sun, Moon } from 'lucide-react';
 import { api } from '../services/api';
 import { User } from '../types';
 
@@ -16,13 +16,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, theme, onTog
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
-
-  // 3 usuários de demonstração rápida para alternar com 1 clique
-  const quickUsers = [
-    { name: 'Arione (Principal)', email: 'arione@financas.app', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Arione' },
-    { name: 'Usuário 2 (Família)', email: 'familia@financas.app', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Familia' },
-    { name: 'Usuário 3 (Convidado)', email: 'convidado@financas.app', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Convidado' }
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,24 +51,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, theme, onTog
       onLoginSuccess(res);
     } catch (e: any) {
       setErrorMessage('Falha ao conectar com Google.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleQuickSelect = async (u: { name: string; email: string; avatar: string }) => {
-    setIsLoading(true);
-    try {
-      const res = await api.loginGoogle({
-        name: u.name,
-        email: u.email,
-        googleId: 'quick-' + u.email,
-        avatarUrl: u.avatar
-      });
-      onLoginSuccess(res);
-    } catch (e) {
-      // Fallback
-      onLoginSuccess({ id: 'u-' + u.email, name: u.name, email: u.email, avatarUrl: u.avatar });
     } finally {
       setIsLoading(false);
     }
@@ -236,34 +211,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, theme, onTog
 
         </div>
 
-        {/* Alternância Rápida entre os 3 Usuários (Perfeito para a família) */}
-        <div className="bg-white/60 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 space-y-2.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            <Users className="w-3.5 h-3.5 text-indigo-500" /> Acesso Rápido (3 Usuários da Casa)
-          </div>
-
-          <div className="grid grid-cols-1 gap-2">
-            {quickUsers.map((qu, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleQuickSelect(qu)}
-                className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 hover:border-indigo-500 text-left transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <img src={qu.avatar} alt={qu.name} className="w-7 h-7 rounded-full bg-indigo-500/10" />
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{qu.name}</p>
-                    <p className="text-[10px] text-slate-400">{qu.email}</p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Entrar &rarr;</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
       </div>
     </div>
   );
 };
+
