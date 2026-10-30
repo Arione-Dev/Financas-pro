@@ -386,7 +386,8 @@ export const api = {
         installmentNumber: i,
         totalInstallments: installments,
         installmentGroupId: installments > 1 ? 'grp-' + Date.now() : undefined,
-        isPaid: data.paymentMethod !== 'CREDIT_CARD'
+        isPaid: data.paymentMethod !== 'CREDIT_CARD',
+        isRecurring: Boolean(data.isRecurring)
       };
       createdList.push(newT);
       localTransactions.unshift(newT);
