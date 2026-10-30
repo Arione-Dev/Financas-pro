@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard as CardIcon, Calendar, Layers, ShieldCheck, Plus, Trash2, CheckCircle2, ChevronRight, AlertCircle } from 'lucide-react';
+import { CreditCard as CardIcon, Calendar, Layers, ShieldCheck, Plus, Trash2, CheckCircle2, ChevronRight, AlertCircle, Check } from 'lucide-react';
 import { CreditCard, Transaction, Account } from '../types';
 import { BANK_PRESETS, getBankPreset } from '../constants/banks';
 import { CardModal } from './CardModal';
@@ -39,8 +39,8 @@ export const CardsView: React.FC<CardsViewProps> = ({
     (t.creditCard?.id === selectedCard?.id || (t as any).creditCardId === selectedCard?.id)
   );
 
-  // Cálculo da fatura atual do cartão selecionado (estritamente real, sem valores fixos de teste)
-  const currentInvoiceTotal = cardTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
+  // Cálculo da fatura atual do cartão selecionado (apenas parcelas e compras em aberto/pendentes)
+  const currentInvoiceTotal = cardTransactions.filter(t => !t.isPaid).reduce((acc, t) => acc + (t.amount || 0), 0);
 
   const handleDelete = (cardId: string, cardName: string) => {
     if (confirm(`Tem certeza que deseja remover o cartão "${cardName}"?`)) {
@@ -91,12 +91,20 @@ export const CardsView: React.FC<CardsViewProps> = ({
           {cards.map(c => {
             const isSelected = c.id === selectedCardId;
             const preset = getBankPreset(c.bank || c.name);
+            const cardUnpaidTxs = transactions.filter(t =>
+              t.paymentMethod === 'CREDIT_CARD' &&
+              !t.isPaid &&
+              (t.creditCard?.id === c.id || (t as any).creditCardId === c.id)
+            );
+            const cardUsed = cardUnpaidTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
+            const cardAvailable = Math.max(0, (c.limitTotal || 0) - cardUsed);
+            const percentUsed = c.limitTotal > 0 ? Math.min(100, (cardUsed / c.limitTotal) * 100) : 0;
 
             return (
               <div
                 key={c.id}
                 onClick={() => setSelectedCardId(c.id)}
-                className={`p-5 rounded-3xl cursor-pointer transition-all relative overflow-hidden flex flex-col justify-between h-48 border shadow-lg ${
+                className={`p-5 rounded-3xl cursor-pointer transition-all relative overflow-hidden flex flex-col justify-between h-52 border shadow-lg ${
                   isSelected
                     ? `border-indigo-400 ring-2 ring-indigo-500/50 scale-[1.02] bg-gradient-to-br ${preset.gradient} text-white`
                     : `border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 text-slate-800 dark:text-white hover:border-slate-400`
@@ -143,28 +151,51 @@ export const CardsView: React.FC<CardsViewProps> = ({
                 </div>
 
                 {/* Linha Central: Chip Simulado e Numeração */}
-                <div className="my-auto flex items-center gap-2">
-                  <div className={`w-8 h-6 rounded-md border flex items-center justify-center ${
-                    isSelected ? 'bg-amber-400/80 border-amber-300' : 'bg-amber-300 border-amber-400'
-                  }`}>
-                    <div className="w-4 h-3 border-t border-b border-amber-600/40"></div>
+                <div className="my-auto flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-6 rounded-md border flex items-center justify-center ${
+                      isSelected ? 'bg-amber-400/80 border-amber-300' : 'bg-amber-300 border-amber-400'
+                    }`}>
+                      <div className="w-4 h-3 border-t border-b border-amber-600/40"></div>
+                    </div>
+                    <span className={`font-mono text-xs tracking-widest ${isSelected ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>
+                      •••• •••• •••• 2026
+                    </span>
                   </div>
-                  <span className={`font-mono text-xs tracking-widest ${isSelected ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>
-                    •••• •••• •••• 2026
-                  </span>
+                  {cardUsed > 0 && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      isSelected ? 'bg-rose-500/80 text-white' : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                    }`}>
+                      Fatura: {formatCurrency(cardUsed)}
+                    </span>
+                  )}
                 </div>
 
-                {/* Linha Inferior: Limite e Vencimento */}
-                <div className="flex justify-between items-end border-t border-black/5 dark:border-white/5 pt-2">
-                  <div>
-                    <span className={`text-[10px] font-medium block ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>Limite Total</span>
-                    <p className={`text-base font-extrabold ${isSelected ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-                      {formatCurrency(c.limitTotal)}
-                    </p>
+                {/* Linha Inferior: Limites (Total e Disponível) */}
+                <div className="border-t border-black/5 dark:border-white/5 pt-2 space-y-1.5">
+                  <div className="flex justify-between items-baseline text-[11px]">
+                    <div>
+                      <span className={`text-[10px] font-medium block ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>Limite Disponível</span>
+                      <p className={`text-sm font-extrabold ${isSelected ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {formatCurrency(cardAvailable)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-[10px] font-medium block ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>Limite Total</span>
+                      <p className={`text-xs font-bold ${isSelected ? 'text-white/90' : 'text-slate-700 dark:text-slate-300'}`}>
+                        {formatCurrency(c.limitTotal)}
+                      </p>
+                    </div>
                   </div>
-                  <div className={`text-right text-[11px] ${isSelected ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>
-                    <p>Fecha dia <strong className="font-bold">{c.closingDay}</strong></p>
-                    <p>Vence dia <strong className="font-bold">{c.dueDay}</strong></p>
+
+                  {/* Barra de progresso do limite */}
+                  <div className="w-full bg-black/10 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        percentUsed > 80 ? 'bg-rose-400' : percentUsed > 50 ? 'bg-amber-400' : isSelected ? 'bg-white' : 'bg-indigo-500'
+                      }`}
+                      style={{ width: `${percentUsed}%` }}
+                    />
                   </div>
                 </div>
               </div>
@@ -248,7 +279,20 @@ export const CardsView: React.FC<CardsViewProps> = ({
                         <p className="text-[11px] text-slate-500">{t.date} • {t.category?.name}</p>
                       </div>
                     </div>
-                    <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-200">{formatCurrency(t.amount)}</span>
+                    <div className="text-right flex flex-col items-end gap-1">
+                      <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-200">
+                        {formatCurrency(t.amount)}
+                      </span>
+                      {t.isPaid ? (
+                        <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" /> Fatura Paga
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          Pendente na Fatura
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

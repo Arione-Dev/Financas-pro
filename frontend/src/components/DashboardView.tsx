@@ -276,11 +276,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {cards.map(card => {
               const preset = getBankPreset(card.bank || card.name);
-              const cardTxs = transactions.filter(t =>
+              const cardUnpaidTxs = transactions.filter(t =>
                 t.paymentMethod === 'CREDIT_CARD' &&
+                !t.isPaid &&
                 (t.creditCard?.id === card.id || (t as any).creditCardId === card.id)
               );
-              const used = cardTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
+              const used = cardUnpaidTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
+              const available = Math.max(0, (card.limitTotal || 0) - used);
               const percentUsed = card.limitTotal > 0 ? Math.min(100, (used / card.limitTotal) * 100) : 0;
 
               return (
@@ -307,13 +309,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-baseline justify-between pt-1">
+                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/80">
                     <div>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Fatura Atual</span>
-                      <p className="font-extrabold text-base text-rose-500 dark:text-rose-400">{formatCurrency(used)}</p>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Fatura Atual</span>
+                      <p className={`font-extrabold text-sm ${used > 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {formatCurrency(used)}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Disponível</span>
+                      <p className="font-bold text-xs text-emerald-600 dark:text-emerald-400">{formatCurrency(available)}</p>
                     </div>
                     <div className="text-right">
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Limite Total</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Limite Total</span>
                       <p className="font-semibold text-xs text-slate-700 dark:text-slate-300">{formatCurrency(card.limitTotal)}</p>
                     </div>
                   </div>

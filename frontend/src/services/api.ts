@@ -349,6 +349,14 @@ export const api = {
       setStored('financas_accounts', localAccounts);
     }
 
+    // Marca as transações em aberto deste cartão como PAGAS (dando baixa nas parcelas da fatura)
+    localTransactions = localTransactions.map(t => {
+      if (t.paymentMethod === 'CREDIT_CARD' && (t.creditCard?.id === cardId || (t as any).creditCardId === cardId)) {
+        return { ...t, isPaid: true };
+      }
+      return t;
+    });
+
     const payTx: Transaction = {
       id: 'tx-pay-' + Date.now(),
       description: 'Pagamento de Fatura Cartão',
