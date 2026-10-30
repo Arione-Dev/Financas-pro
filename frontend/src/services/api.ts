@@ -144,13 +144,36 @@ export const api = {
       }
     } catch (e) {}
 
-    // Recalcula dinamicamente em tempo real
+    // Recalcula dinamicamente em tempo real com base apenas nos lançamentos reais do usuário
     const totalBalance = localAccounts.reduce((acc, a) => acc + (Number(a.currentBalance) || 0), 0);
     const monthIncome = monthlySalary + otherIncome;
-    const monthExpense = localTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const expenseTransactions = localTransactions.filter(t => t.type === 'EXPENSE');
+    const monthExpense = expenseTransactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     const openInvoicesTotal = localTransactions
       .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid)
       .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    // Agrupa estritamente as despesas reais por categoria (se não houver despesas, a lista fica vazia)
+    const categoryTotals: Record<string, { name: string; color: string; amount: number }> = {};
+    for (const t of expenseTransactions) {
+      const catId = t.category?.id || (t as any).categoryId;
+      const cat = localCategories.find(c => c.id === catId) || t.category;
+      const catName = cat?.name || 'Outros';
+      const catColor = cat?.color || '#94A3B8';
+      const amt = Number(t.amount) || 0;
+
+      if (!categoryTotals[catName]) {
+        categoryTotals[catName] = { name: catName, color: catColor, amount: 0 };
+      }
+      categoryTotals[catName].amount += amt;
+    }
+
+    const categoryExpenses = Object.values(categoryTotals).map(item => ({
+      name: item.name,
+      color: item.color,
+      amount: item.amount,
+      percentage: monthExpense > 0 ? (item.amount / monthExpense) * 100 : 0
+    }));
 
     return {
       totalBalance,
@@ -158,11 +181,7 @@ export const api = {
       monthIncome,
       monthExpense,
       openInvoicesTotal,
-      categoryExpenses: [
-        { name: 'Supermercado', color: '#10B981', amount: 450.30, percentage: 50 },
-        { name: 'Lazer', color: '#06B6D4', amount: 399.90, percentage: 44 },
-        { name: 'Transporte', color: '#3B82F6', amount: 54.80, percentage: 6 }
-      ]
+      categoryExpenses
     };
   },
 
