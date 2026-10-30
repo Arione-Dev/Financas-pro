@@ -38,13 +38,13 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
     if (cards.length > 0 && (!creditCardId || !cards.some(c => c.id === creditCardId))) {
       setCreditCardId(cards[0].id);
     }
-  }, [cards, creditCardId]);
+  }, [cards, creditCardId, isOpen]);
 
   useEffect(() => {
     if (accounts.length > 0 && (!accountId || !accounts.some(a => a.id === accountId))) {
       setAccountId(accounts[0].id);
     }
-  }, [accounts, accountId]);
+  }, [accounts, accountId, isOpen]);
 
   if (!isOpen) return null;
 
@@ -328,17 +328,32 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
                 {type === 'INCOME' ? 'Conta de Destino' : 'Conta de Origem'}
               </label>
-              <select
-                value={accountId}
-                onChange={e => setAccountId(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {accounts.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} — Saldo: {formatBRL(a.currentBalance)}
-                  </option>
-                ))}
-              </select>
+              {accounts.length === 0 ? (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+                  <span>Nenhuma conta cadastrada para debitar.</span>
+                  {onOpenAddCard && (
+                    <button
+                      type="button"
+                      onClick={onOpenAddCard}
+                      className="font-bold underline text-amber-900 dark:text-amber-200"
+                    >
+                      + Criar Conta
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <select
+                  value={accountId || accounts[0]?.id}
+                  onChange={e => setAccountId(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} — Saldo: {formatBRL(a.currentBalance)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 

@@ -193,6 +193,14 @@ export const api = {
         }
       }
     } catch (e) {}
+
+    // Garante que o usuário nunca fique sem uma conta para lançar pagamentos/receitas
+    if (localAccounts.length === 0) {
+      localAccounts = [
+        { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 0, color: '#8A05BE' }
+      ];
+      setStored('financas_accounts', localAccounts);
+    }
     return localAccounts;
   },
 
