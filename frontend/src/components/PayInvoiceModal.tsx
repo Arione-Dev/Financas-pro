@@ -21,6 +21,12 @@ export const PayInvoiceModal: React.FC<PayInvoiceModalProps> = ({
 }) => {
   const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '');
 
+  React.useEffect(() => {
+    if (accounts.length > 0 && (!selectedAccountId || !accounts.some(a => a.id === selectedAccountId))) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [accounts, selectedAccountId]);
+
   if (!isOpen) return null;
 
   const handlePay = (e: React.FormEvent) => {
