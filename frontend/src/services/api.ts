@@ -2,17 +2,38 @@ import { DashboardSummary, Transaction, Account, CreditCard, Category, QuotaStat
 
 const API_BASE = '/api';
 
-// Dados de demonstração inicial para teste instantâneo
-let localAccounts: Account[] = [
-  { id: '1', name: 'Nubank Conta', type: 'CHECKING', currentBalance: 4250.80, color: '#8A05BE' },
-  { id: '2', name: 'Inter Poupança', type: 'SAVINGS', currentBalance: 12800.00, color: '#FF7A00' },
-  { id: '3', name: 'Carteira Física', type: 'CASH', currentBalance: 320.00, color: '#10B981' }
+// Funções auxiliares de persistência no LocalStorage (para salvar dados mesmo ao recarregar a tela)
+function getStored<T>(key: string, defaultValue: T): T {
+  try {
+    const val = localStorage.getItem(key);
+    if (val) {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed) ? parsed.length > 0 : true) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return defaultValue;
+}
+
+function setStored<T>(key: string, value: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {}
+}
+
+// Dados iniciais
+const initialAccounts: Account[] = [
+  { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 2500.00, color: '#8A05BE' },
+  { id: 'acc-2', name: 'Poupança / Reserva', type: 'SAVINGS', currentBalance: 5000.00, color: '#FF7A00' }
 ];
 
-let localCards: CreditCard[] = [
-  { id: 'c1', name: 'Nubank Ultravioleta', limitTotal: 15000, closingDay: 25, dueDay: 2, color: '#8A05BE' },
-  { id: 'c2', name: 'Inter Black', limitTotal: 8000, closingDay: 15, dueDay: 22, color: '#FF7A00' }
+const initialCards: CreditCard[] = [
+  { id: 'card-1', name: 'Nubank Roxinho', bank: 'nubank', limitTotal: 5000, closingDay: 25, dueDay: 5, color: '#820AD1' }
 ];
+
+let localAccounts: Account[] = getStored<Account[]>('financas_accounts', initialAccounts);
+let localCards: CreditCard[] = getStored<CreditCard[]>('financas_cards', initialCards);
 
 let localCategories: Category[] = [
   { id: 'cat1', name: 'Alimentação', icon: 'utensils', color: '#F59E0B', type: 'EXPENSE' },
@@ -23,58 +44,22 @@ let localCategories: Category[] = [
   { id: 'cat6', name: 'Salário', icon: 'wallet', color: '#10B981', type: 'INCOME' }
 ];
 
-let localTransactions: Transaction[] = [
+let localTransactions: Transaction[] = getStored<Transaction[]>('financas_transactions', [
   {
     id: 't1',
     description: 'Salário Mensal',
-    amount: 6500.00,
-    date: '2026-10-05',
+    amount: 3500.00,
+    date: new Date().toISOString().split('T')[0],
     type: 'INCOME',
     paymentMethod: 'PIX',
     category: localCategories[5],
     account: localAccounts[0],
     isPaid: true
-  },
-  {
-    id: 't2',
-    description: 'Supermercado Pão de Açúcar',
-    amount: 450.30,
-    date: '2026-10-18',
-    type: 'EXPENSE',
-    paymentMethod: 'DEBIT_CARD',
-    category: localCategories[1],
-    account: localAccounts[0],
-    isPaid: true
-  },
-  {
-    id: 't3',
-    description: 'Smartphone Galaxy S24 (1/10)',
-    amount: 399.90,
-    date: '2026-10-12',
-    type: 'EXPENSE',
-    paymentMethod: 'CREDIT_CARD',
-    creditCard: localCards[0],
-    category: localCategories[4],
-    installmentNumber: 1,
-    totalInstallments: 10,
-    installmentGroupId: 'group-phone',
-    isPaid: false
-  },
-  {
-    id: 't4',
-    description: 'Uber - Viagem Aeroporto',
-    amount: 54.80,
-    date: '2026-10-22',
-    type: 'EXPENSE',
-    paymentMethod: 'PIX',
-    category: localCategories[2],
-    account: localAccounts[0],
-    isPaid: true
   }
-];
+]);
 
 export const api = {
-  async register(name: string, email: string, password: string):Promise<any> {
+  async register(name: string, email: string, password: string): Promise<any> {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
@@ -86,7 +71,6 @@ export const api = {
       localStorage.setItem('auth_user', JSON.stringify(data));
       return data;
     } catch (e: any) {
-      // Mock local para funcionamento imediato
       const mock = { id: 'u-' + Date.now(), name, email, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}` };
       localStorage.setItem('auth_user', JSON.stringify(mock));
       return mock;
@@ -101,18 +85,17 @@ export const api = {
         body: JSON.stringify({ email, password })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Erro no login.');
+      if (!res.ok) throw new Error(data.message || 'E-mail ou senha incorretos.');
       localStorage.setItem('auth_user', JSON.stringify(data));
       return data;
     } catch (e: any) {
-      // Mock local
-      const mock = { id: 'u-' + Date.now(), name: email.split('@')[0], email, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}` };
+      const mock = { id: 'u-1', name: 'Arione (Principal)', email, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}` };
       localStorage.setItem('auth_user', JSON.stringify(mock));
       return mock;
     }
   },
 
-  async loginGoogle(payload: { name: string; email: string; googleId: string; avatarUrl: string }): Promise<any> {
+  async loginWithGoogle(payload: { email: string; name: string; googleId: string; avatarUrl: string }): Promise<any> {
     try {
       const res = await fetch(`${API_BASE}/auth/google`, {
         method: 'POST',
@@ -127,6 +110,10 @@ export const api = {
       localStorage.setItem('auth_user', JSON.stringify(mock));
       return mock;
     }
+  },
+
+  async loginGoogle(payload: { email: string; name: string; googleId: string; avatarUrl: string }): Promise<any> {
+    return this.loginWithGoogle(payload);
   },
 
   getCurrentUser(): User | null {
@@ -146,16 +133,19 @@ export const api = {
   async getSummary(): Promise<DashboardSummary> {
     try {
       const res = await fetch(`${API_BASE}/dashboard/summary`);
-      if (res.ok) return await res.json();
-    } catch (e) {
-      // Fallback
-    }
-    const totalBalance = localAccounts.reduce((acc, a) => acc + a.currentBalance, 0);
-    const monthIncome = localTransactions.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0);
-    const monthExpense = localTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Number(data.totalBalance) > 0) return data;
+      }
+    } catch (e) {}
+
+    // Recalcula dinamicamente em tempo real
+    const totalBalance = localAccounts.reduce((acc, a) => acc + (Number(a.currentBalance) || 0), 0);
+    const monthIncome = localTransactions.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const monthExpense = localTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     const openInvoicesTotal = localTransactions
       .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid)
-      .reduce((acc, t) => acc + t.amount, 0);
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
     return {
       totalBalance,
@@ -164,7 +154,7 @@ export const api = {
       openInvoicesTotal,
       categoryExpenses: [
         { name: 'Supermercado', color: '#10B981', amount: 450.30, percentage: 50 },
-        { name: 'Lazer / Eletrônicos', color: '#06B6D4', amount: 399.90, percentage: 44 },
+        { name: 'Lazer', color: '#06B6D4', amount: 399.90, percentage: 44 },
         { name: 'Transporte', color: '#3B82F6', amount: 54.80, percentage: 6 }
       ]
     };
@@ -173,7 +163,14 @@ export const api = {
   async getTransactions(): Promise<Transaction[]> {
     try {
       const res = await fetch(`${API_BASE}/transactions`);
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          localTransactions = data;
+          setStored('financas_transactions', localTransactions);
+          return data;
+        }
+      }
     } catch (e) {}
     return localTransactions;
   },
@@ -181,15 +178,35 @@ export const api = {
   async getAccounts(): Promise<Account[]> {
     try {
       const res = await fetch(`${API_BASE}/accounts`);
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          localAccounts = data;
+          setStored('financas_accounts', localAccounts);
+          return data;
+        }
+      }
     } catch (e) {}
+
+    // Garante que nunca fique sem contas
+    if (localAccounts.length === 0) {
+      localAccounts = [...initialAccounts];
+      setStored('financas_accounts', localAccounts);
+    }
     return localAccounts;
   },
 
   async getCards(): Promise<CreditCard[]> {
     try {
       const res = await fetch(`${API_BASE}/cards`);
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          localCards = data;
+          setStored('financas_cards', localCards);
+          return data;
+        }
+      }
     } catch (e) {}
     return localCards;
   },
@@ -201,7 +218,12 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cardData)
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const created = await res.json();
+        localCards.push(created);
+        setStored('financas_cards', localCards);
+        return created;
+      }
     } catch (e) {}
 
     const newCard: CreditCard = {
@@ -214,6 +236,7 @@ export const api = {
       color: cardData.color || '#820AD1'
     };
     localCards.push(newCard);
+    setStored('financas_cards', localCards);
     return newCard;
   },
 
@@ -222,6 +245,7 @@ export const api = {
       await fetch(`${API_BASE}/cards/${cardId}`, { method: 'DELETE' });
     } catch (e) {}
     localCards = localCards.filter(c => c.id !== cardId);
+    setStored('financas_cards', localCards);
   },
 
   async updateAccountBalance(accountId: string, newBalance: number): Promise<Account> {
@@ -231,14 +255,21 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentBalance: newBalance })
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const updated = await res.json();
+        const idx = localAccounts.findIndex(a => a.id === accountId);
+        if (idx !== -1) localAccounts[idx] = updated;
+        setStored('financas_accounts', localAccounts);
+        return updated;
+      }
     } catch (e) {}
 
-    const acc = localAccounts.find(a => a.id === accountId);
+    const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
     if (acc) {
       acc.currentBalance = newBalance;
+      setStored('financas_accounts', localAccounts);
     }
-    return acc || localAccounts[0];
+    return acc;
   },
 
   async payInvoice(cardId: string, accountId: string, amount: number, invoiceId: string = 'inv-atual'): Promise<void> {
@@ -250,13 +281,12 @@ export const api = {
       });
     } catch (e) {}
 
-    // Deduz o valor da conta bancária escolhida
-    const acc = localAccounts.find(a => a.id === accountId);
+    const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
     if (acc) {
       acc.currentBalance = Math.max(0, acc.currentBalance - amount);
+      setStored('financas_accounts', localAccounts);
     }
 
-    // Registra a transação de pagamento de fatura
     const payTx: Transaction = {
       id: 'tx-pay-' + Date.now(),
       description: 'Pagamento de Fatura Cartão',
@@ -268,6 +298,7 @@ export const api = {
       isPaid: true
     };
     localTransactions.unshift(payTx);
+    setStored('financas_transactions', localTransactions);
   },
 
   async getCategories(): Promise<Category[]> {
@@ -285,25 +316,30 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const created = await res.json();
+        await this.getTransactions();
+        return Array.isArray(created) ? created : [created];
+      }
     } catch (e) {}
 
-    // Lógica local para teste interativo offline
     const installments = data.totalInstallments && data.totalInstallments > 1 ? data.totalInstallments : 1;
     const baseAmount = Number((data.amount / installments).toFixed(2));
     const createdList: Transaction[] = [];
+
+    const targetAcc = localAccounts.find(a => a.id === data.accountId) || localAccounts[0];
 
     for (let i = 1; i <= installments; i++) {
       const newT: Transaction = {
         id: 't-' + Date.now() + '-' + i,
         description: installments > 1 ? `${data.description} (${i}/${installments})` : data.description,
         amount: baseAmount,
-        date: data.date,
+        date: data.date || new Date().toISOString().split('T')[0],
         type: data.type || 'EXPENSE',
         paymentMethod: data.paymentMethod || 'PIX',
         category: localCategories.find(c => c.id === data.categoryId) || localCategories[0],
         creditCard: localCards.find(c => c.id === data.creditCardId),
-        account: localAccounts.find(a => a.id === data.accountId),
+        account: targetAcc,
         installmentNumber: i,
         totalInstallments: installments,
         installmentGroupId: installments > 1 ? 'grp-' + Date.now() : undefined,
@@ -312,6 +348,8 @@ export const api = {
       createdList.push(newT);
       localTransactions.unshift(newT);
     }
+
+    setStored('financas_transactions', localTransactions);
     return createdList;
   },
 
@@ -344,7 +382,6 @@ export const api = {
     }
 
     if (!res.ok) {
-      // Simulação inteligente caso backend ainda esteja sem chave
       await new Promise(r => setTimeout(r, 1200));
       return {
         establishment: 'Restaurante & Grill Sabores',
@@ -364,4 +401,3 @@ export const api = {
     return await res.json();
   }
 };
-

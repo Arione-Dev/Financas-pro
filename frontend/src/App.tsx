@@ -124,17 +124,20 @@ export const App: React.FC = () => {
 
   const handleAddSalaryOrIncome = async (accountId: string, amount: number, description: string) => {
     const acc = accounts.find(a => a.id === accountId) || accounts[0];
+    const targetAccountId = acc ? acc.id : (accounts[0]?.id || 'acc-1');
+    const currentBal = acc ? (Number(acc.currentBalance) || 0) : 0;
+
     await api.createTransaction({
       description: description || 'Salário Mensal',
       amount,
       type: 'INCOME',
       paymentMethod: 'PIX',
-      accountId: acc.id,
+      accountId: targetAccountId,
       date: new Date().toISOString().split('T')[0],
       isPaid: true
     });
     // Incrementa saldo atual
-    await api.updateAccountBalance(accountId, acc.currentBalance + amount);
+    await api.updateAccountBalance(targetAccountId, currentBal + amount);
     await loadAllData();
   };
 
