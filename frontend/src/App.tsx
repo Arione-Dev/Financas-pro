@@ -237,6 +237,10 @@ export const App: React.FC = () => {
         accounts={accounts}
         cards={cards}
         categories={categories}
+        onOpenAddCard={() => {
+          setIsNewTxModalOpen(false);
+          setCurrentTab('cards');
+        }}
       />
 
       {/* Modal de Edição de Saldo e Salário */}

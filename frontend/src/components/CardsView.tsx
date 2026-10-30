@@ -34,10 +34,13 @@ export const CardsView: React.FC<CardsViewProps> = ({
   };
 
   const selectedCard = cards.find(c => c.id === selectedCardId) || cards[0];
-  const cardTransactions = transactions.filter(t => t.paymentMethod === 'CREDIT_CARD');
+  const cardTransactions = transactions.filter(t => 
+    t.paymentMethod === 'CREDIT_CARD' && 
+    (t.creditCard?.id === selectedCard?.id || (t as any).creditCardId === selectedCard?.id)
+  );
 
-  // Cálculo da fatura atual do cartão selecionado
-  const currentInvoiceTotal = cardTransactions.reduce((acc, t) => acc + (t.amount || 0), 0) || 399.90;
+  // Cálculo da fatura atual do cartão selecionado (estritamente real, sem valores fixos de teste)
+  const currentInvoiceTotal = cardTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
 
   const handleDelete = (cardId: string, cardName: string) => {
     if (confirm(`Tem certeza que deseja remover o cartão "${cardName}"?`)) {
@@ -180,9 +183,15 @@ export const CardsView: React.FC<CardsViewProps> = ({
                 <h3 className="font-bold text-base text-slate-900 dark:text-white">
                   Fatura Atual • {selectedCard.name}
                 </h3>
-                <span className="text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-2.5 py-0.5 rounded-full">
-                  Fatura Aberta
-                </span>
+                {currentInvoiceTotal > 0 ? (
+                  <span className="text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-2.5 py-0.5 rounded-full">
+                    Fatura Aberta
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                    Fatura Zerada
+                  </span>
+                )}
               </div>
               <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-0.5">
                 Fechamento dia {selectedCard.closingDay} • Vencimento dia {selectedCard.dueDay}
@@ -192,16 +201,21 @@ export const CardsView: React.FC<CardsViewProps> = ({
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <span className="text-[11px] text-slate-500 block">Total a pagar</span>
-                <span className="text-xl font-extrabold text-slate-900 dark:text-white">
+                <span className={`text-xl font-extrabold ${currentInvoiceTotal > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
                   {formatCurrency(currentInvoiceTotal)}
                 </span>
               </div>
               <button
+                disabled={currentInvoiceTotal <= 0}
                 onClick={() => setIsPayModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/25 transition-transform active:scale-95"
+                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl font-bold text-xs shadow-lg transition-transform active:scale-95 ${
+                  currentInvoiceTotal > 0
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none'
+                }`}
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Dar Baixa na Fatura</span>
+                <span>{currentInvoiceTotal > 0 ? 'Dar Baixa na Fatura' : 'Fatura em Dia'}</span>
               </button>
             </div>
           </div>

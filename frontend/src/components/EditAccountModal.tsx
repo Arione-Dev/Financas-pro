@@ -147,3 +147,4 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
     </div>
   );
 };
+

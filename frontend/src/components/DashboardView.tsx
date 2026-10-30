@@ -235,8 +235,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {cards.map(card => {
               const preset = getBankPreset(card.bank || card.name);
-              const used = 399.90; // Exemplo de fatura atual
-              const percentUsed = Math.min(100, (used / card.limitTotal) * 100);
+              const cardTxs = transactions.filter(t =>
+                t.paymentMethod === 'CREDIT_CARD' &&
+                (t.creditCard?.id === card.id || (t as any).creditCardId === card.id)
+              );
+              const used = cardTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
+              const percentUsed = card.limitTotal > 0 ? Math.min(100, (used / card.limitTotal) * 100) : 0;
 
               return (
                 <div

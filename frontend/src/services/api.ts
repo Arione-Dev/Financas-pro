@@ -153,7 +153,9 @@ export const api = {
     const totalBalance = localAccounts.reduce((acc, a) => acc + a.currentBalance, 0);
     const monthIncome = localTransactions.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0);
     const monthExpense = localTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
-    const openInvoicesTotal = 399.90;
+    const openInvoicesTotal = localTransactions
+      .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid)
+      .reduce((acc, t) => acc + t.amount, 0);
 
     return {
       totalBalance,
