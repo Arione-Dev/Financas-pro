@@ -6,11 +6,8 @@ const API_BASE = '/api';
 function getStored<T>(key: string, defaultValue: T): T {
   try {
     const val = localStorage.getItem(key);
-    if (val) {
-      const parsed = JSON.parse(val);
-      if (Array.isArray(parsed) ? parsed.length > 0 : true) {
-        return parsed;
-      }
+    if (val !== null) {
+      return JSON.parse(val);
     }
   } catch (e) {}
   return defaultValue;
@@ -187,13 +184,42 @@ export const api = {
         }
       }
     } catch (e) {}
-
-    // Garante que nunca fique sem contas
-    if (localAccounts.length === 0) {
-      localAccounts = [...initialAccounts];
-      setStored('financas_accounts', localAccounts);
-    }
     return localAccounts;
+  },
+
+  async createAccount(data: { name: string; type: 'CHECKING' | 'SAVINGS' | 'CASH'; currentBalance: number; color?: string }): Promise<Account> {
+    try {
+      const res = await fetch(`${API_BASE}/accounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        const created = await res.json();
+        localAccounts.push(created);
+        setStored('financas_accounts', localAccounts);
+        return created;
+      }
+    } catch (e) {}
+
+    const newAcc: Account = {
+      id: 'acc-' + Date.now(),
+      name: data.name || 'Nova Conta',
+      type: data.type || 'CHECKING',
+      currentBalance: data.currentBalance || 0,
+      color: data.color || '#3B82F6'
+    };
+    localAccounts.push(newAcc);
+    setStored('financas_accounts', localAccounts);
+    return newAcc;
+  },
+
+  async deleteAccount(accountId: string): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/accounts/${accountId}`, { method: 'DELETE' });
+    } catch (e) {}
+    localAccounts = localAccounts.filter(a => a.id !== accountId);
+    setStored('financas_accounts', localAccounts);
   },
 
   async getCards(): Promise<CreditCard[]> {

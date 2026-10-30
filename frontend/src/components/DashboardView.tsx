@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, EyeOff, TrendingUp, TrendingDown, CreditCard as CardIcon, ArrowUpRight, ArrowDownRight, Layers, Sparkles, Wallet, Edit3, Plus, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, TrendingDown, CreditCard as CardIcon, ArrowUpRight, ArrowDownRight, Layers, Sparkles, Wallet, Edit3, Plus, ChevronRight, Trash2 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { DashboardSummary, Transaction, Account, CreditCard } from '../types';
 import { getBankPreset } from '../constants/banks';
@@ -14,6 +14,7 @@ interface DashboardViewProps {
   onOpenScan: () => void;
   onOpenNewTransaction: () => void;
   onOpenEditAccount?: (account?: Account) => void;
+  onDeleteAccount?: (accountId: string) => void;
   onSelectTab?: (tab: 'dashboard' | 'transactions' | 'cards') => void;
 }
 
@@ -27,6 +28,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenScan,
   onOpenNewTransaction,
   onOpenEditAccount,
+  onDeleteAccount,
   onSelectTab
 }) => {
 
@@ -183,29 +185,66 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="space-y-3">
-            {accounts.map(acc => (
-              <div
-                key={acc.id}
-                onClick={() => onOpenEditAccount && onOpenEditAccount(acc)}
-                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white shadow-sm" style={{ backgroundColor: acc.color }}>
-                    {acc.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      {acc.name}
-                    </h4>
-                    <p className="text-[11px] text-slate-500">{acc.type === 'CHECKING' ? 'Conta Corrente' : acc.type === 'SAVINGS' ? 'Poupança' : 'Dinheiro'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{formatCurrency(acc.currentBalance)}</p>
-                  <Edit3 className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 opacity-60 group-hover:opacity-100 transition-opacity" />
-                </div>
+            {accounts.length === 0 ? (
+              <div className="text-center py-6 space-y-2">
+                <p className="text-xs text-slate-500">Nenhuma conta cadastrada.</p>
+                <button
+                  onClick={() => onOpenEditAccount && onOpenEditAccount()}
+                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700"
+                >
+                  + Adicionar Conta
+                </button>
               </div>
-            ))}
+            ) : (
+              accounts.map(acc => (
+                <div
+                  key={acc.id}
+                  onClick={() => onOpenEditAccount && onOpenEditAccount(acc)}
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white shadow-sm" style={{ backgroundColor: acc.color }}>
+                      {acc.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        {acc.name}
+                      </h4>
+                      <p className="text-[11px] text-slate-500">{acc.type === 'CHECKING' ? 'Conta Corrente' : acc.type === 'SAVINGS' ? 'Poupança' : 'Dinheiro'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{formatCurrency(acc.currentBalance)}</p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenEditAccount && onOpenEditAccount(acc);
+                      }}
+                      title="Editar saldo"
+                      className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 transition-colors"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    {onDeleteAccount && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Tem certeza que deseja apagar a conta "${acc.name}"?`)) {
+                            onDeleteAccount(acc.id);
+                          }
+                        }}
+                        title="Apagar esta conta"
+                        className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

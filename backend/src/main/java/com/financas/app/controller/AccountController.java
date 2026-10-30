@@ -70,4 +70,13 @@ public class AccountController {
             return ResponseEntity.ok(accountRepository.save(acc));
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteAccount(@PathVariable UUID id) {
+        accountRepository.findById(id).ifPresent(acc -> {
+            acc.setIsActive(false);
+            accountRepository.save(acc);
+        });
+        return ResponseEntity.noContent().build();
+    }
 }

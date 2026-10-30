@@ -116,9 +116,19 @@ export const App: React.FC = () => {
     await loadAllData();
   };
 
-  // Funções de Gestão de Saldo e Salário
+  // Funções de Gestão de Saldo, Contas e Salário
   const handleSaveAccountBalance = async (accountId: string, newBalance: number) => {
     await api.updateAccountBalance(accountId, newBalance);
+    await loadAllData();
+  };
+
+  const handleDeleteAccount = async (accountId: string) => {
+    await api.deleteAccount(accountId);
+    await loadAllData();
+  };
+
+  const handleCreateAccount = async (accountData: { name: string; type: 'CHECKING' | 'SAVINGS' | 'CASH'; currentBalance: number; color?: string }) => {
+    await api.createAccount(accountData);
     await loadAllData();
   };
 
@@ -187,6 +197,7 @@ export const App: React.FC = () => {
                 onOpenScan={() => setIsScanModalOpen(true)}
                 onOpenNewTransaction={() => setIsNewTxModalOpen(true)}
                 onOpenEditAccount={() => setIsEditAccountModalOpen(true)}
+                onDeleteAccount={handleDeleteAccount}
                 onSelectTab={setCurrentTab}
               />
             )}
@@ -246,12 +257,14 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Modal de Edição de Saldo e Salário */}
+      {/* Modal de Edição de Saldo, Salário e Contas */}
       <EditAccountModal
         isOpen={isEditAccountModalOpen}
         onClose={() => setIsEditAccountModalOpen(false)}
         onSaveBalance={handleSaveAccountBalance}
         onAddIncome={handleAddSalaryOrIncome}
+        onDeleteAccount={handleDeleteAccount}
+        onCreateAccount={handleCreateAccount}
         accounts={accounts}
       />
 
