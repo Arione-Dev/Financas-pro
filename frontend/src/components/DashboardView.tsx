@@ -144,16 +144,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(val: number) => [formatCurrency(val), 'Valor']}
-                      contentStyle={{
-                        backgroundColor: '#1E293B',
-                        border: '1px solid #334155',
-                        borderRadius: '12px',
-                        padding: '6px 12px',
-                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)'
-                      }}
-                      itemStyle={{ color: '#FFFFFF', fontWeight: 700, fontSize: '12px' }}
-                      labelStyle={{ color: '#CBD5E1', fontSize: '11px' }}
+                      formatter={(val: number) => formatCurrency(val)}
+                      contentStyle={{ backgroundColor: '#131B2E', borderColor: '#1E293B', borderRadius: '12px', color: '#fff' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

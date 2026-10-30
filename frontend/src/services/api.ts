@@ -41,9 +41,7 @@ let localCategories: Category[] = [
   { id: 'cat6', name: 'Salário', icon: 'wallet', color: '#10B981', type: 'INCOME' }
 ];
 
-let localTransactions: Transaction[] = getStored<Transaction[]>('financas_transactions', [])
-  .filter(t => !['t1', 't2', 't3', 't4'].includes(t.id));
-setStored('financas_transactions', localTransactions);
+let localTransactions: Transaction[] = getStored<Transaction[]>('financas_transactions', []);
 
 export const api = {
   async register(name: string, email: string, password: string): Promise<any> {
@@ -146,34 +144,13 @@ export const api = {
       }
     } catch (e) {}
 
-    // Recalcula dinamicamente em tempo real com base apenas em transações reais
+    // Recalcula dinamicamente em tempo real
     const totalBalance = localAccounts.reduce((acc, a) => acc + (Number(a.currentBalance) || 0), 0);
     const monthIncome = monthlySalary + otherIncome;
-    const expenseTxs = localTransactions.filter(t => t.type === 'EXPENSE');
-    const monthExpense = expenseTxs.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const monthExpense = localTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     const openInvoicesTotal = localTransactions
       .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid)
       .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-    // Agrupa por categoria apenas se houver despesas reais
-    const catMap = new Map<string, { name: string; color: string; amount: number }>();
-    for (const t of expenseTxs) {
-      const catName = t.category?.name || 'Geral';
-      const catColor = t.category?.color || '#6366F1';
-      const existing = catMap.get(catName);
-      if (existing) {
-        existing.amount += Number(t.amount) || 0;
-      } else {
-        catMap.set(catName, { name: catName, color: catColor, amount: Number(t.amount) || 0 });
-      }
-    }
-
-    const categoryExpenses = Array.from(catMap.values()).map(c => ({
-      name: c.name,
-      color: c.color,
-      amount: c.amount,
-      percentage: monthExpense > 0 ? (c.amount / monthExpense) * 100 : 0
-    }));
 
     return {
       totalBalance,
@@ -181,7 +158,11 @@ export const api = {
       monthIncome,
       monthExpense,
       openInvoicesTotal,
-      categoryExpenses
+      categoryExpenses: [
+        { name: 'Supermercado', color: '#10B981', amount: 450.30, percentage: 50 },
+        { name: 'Lazer', color: '#06B6D4', amount: 399.90, percentage: 44 },
+        { name: 'Transporte', color: '#3B82F6', amount: 54.80, percentage: 6 }
+      ]
     };
   },
 
@@ -212,6 +193,14 @@ export const api = {
         }
       }
     } catch (e) {}
+
+    // Garante que o usuário nunca fique sem uma conta para lançar pagamentos/receitas
+    if (localAccounts.length === 0) {
+      localAccounts = [
+        { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 0, color: '#8A05BE' }
+      ];
+      setStored('financas_accounts', localAccounts);
+    }
     return localAccounts;
   },
 
