@@ -8,6 +8,9 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Gemini](https://img.shields.io/badge/Google_Gemini-Vision_AI-8E75C2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
+[![Modo Claro & Escuro](https://img.shields.io/badge/Tema-Claro_%26_Escuro-3B82F6?style=for-the-badge)](https://tailwindcss.com/)
+[![PWA](https://img.shields.io/badge/PWA-Mobile_%26_Desktop-5A0FC8?style=for-the-badge)](https://web.dev/progressive-web-apps/)
+[![Gitflow](https://img.shields.io/badge/Git-Gitflow_Workflow-F05032?style=for-the-badge&logo=git&logoColor=white)](https://git-scm.com/)
 
 Finanças Pro é uma aplicação moderna de gestão financeira pessoal e familiar construída sob os princípios da engenharia de software corporativa, arquitetura limpa (Clean Architecture / 12-Factor App) e experiência de usuário inspirada nas fintechs mais avançadas do mundo (Nubank, Revolut, Copilot Money).
 
@@ -204,6 +207,21 @@ mvn spring-boot:run
 # ou execute: java -jar target/financas-api-0.0.1-SNAPSHOT.jar
 ```
 Disponível em: `http://localhost:8080`
+
+---
+
+## 🌿 Metodologia Gitflow & Padrão de Versionamento
+
+O projeto adota rigorosamente as práticas do **Gitflow** adaptado com convenções em Português do Brasil:
+
+- `main`: Branch de produção, contendo apenas versões testadas, estáveis e prontas para deploy no servidor.
+- `funcionalidade/*` ou `melhoria/*`: Branches criadas a partir de `main` para o desenvolvimento de novas features ou aprimoramentos de interface.
+- `correcao/*`: Branches dedicadas à resolução de inconsistências ou bugs encontrados.
+- **Padrão de Mensagens de Commit (Conventional Commits)**:
+  - `feat`: Adição de nova funcionalidade (ex: `feat: adiciona leitor de comprovantes`).
+  - `fix` ou `seguranca`: Correção de erro ou ajuste de segurança.
+  - `melhoria`: Refinamento de usabilidade, contraste ou performance.
+  - `docs`: Atualizações na documentação ou arquitetura.
 
 ---
 
