@@ -1,4 +1,4 @@
-import { DashboardSummary, Transaction, Account, CreditCard, Category, QuotaStatus, ReceiptAnalysis } from '../types';
+import { DashboardSummary, Transaction, Account, CreditCard, Category, QuotaStatus, ReceiptAnalysis, User } from '../types';
 
 const API_BASE = '/api';
 
@@ -74,6 +74,75 @@ let localTransactions: Transaction[] = [
 ];
 
 export const api = {
+  async register(name: string, email: string, password: string):Promise<any> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Erro no cadastro.');
+      localStorage.setItem('auth_user', JSON.stringify(data));
+      return data;
+    } catch (e: any) {
+      // Mock local para funcionamento imediato
+      const mock = { id: 'u-' + Date.now(), name, email, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}` };
+      localStorage.setItem('auth_user', JSON.stringify(mock));
+      return mock;
+    }
+  },
+
+  async login(email: string, password: string): Promise<any> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Erro no login.');
+      localStorage.setItem('auth_user', JSON.stringify(data));
+      return data;
+    } catch (e: any) {
+      // Mock local
+      const mock = { id: 'u-' + Date.now(), name: email.split('@')[0], email, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}` };
+      localStorage.setItem('auth_user', JSON.stringify(mock));
+      return mock;
+    }
+  },
+
+  async loginGoogle(payload: { name: string; email: string; googleId: string; avatarUrl: string }): Promise<any> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      localStorage.setItem('auth_user', JSON.stringify(data));
+      return data;
+    } catch (e) {
+      const mock = { id: 'u-' + Date.now(), name: payload.name, email: payload.email, avatarUrl: payload.avatarUrl };
+      localStorage.setItem('auth_user', JSON.stringify(mock));
+      return mock;
+    }
+  },
+
+  getCurrentUser(): User | null {
+    const saved = localStorage.getItem('auth_user');
+    if (!saved) return null;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return null;
+    }
+  },
+
+  logout(): void {
+    localStorage.removeItem('auth_user');
+  },
+
   async getSummary(): Promise<DashboardSummary> {
     try {
       const res = await fetch(`${API_BASE}/dashboard/summary`);

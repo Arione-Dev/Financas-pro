@@ -6,10 +6,12 @@ import { TransactionsView } from './components/TransactionsView';
 import { CardsView } from './components/CardsView';
 import { ReceiptScanModal } from './components/ReceiptScanModal';
 import { NewTransactionModal } from './components/NewTransactionModal';
+import { AuthView } from './components/AuthView';
 import { api } from './services/api';
-import { DashboardSummary, Transaction, Account, CreditCard, Category } from './types';
+import { DashboardSummary, Transaction, Account, CreditCard, Category, User } from './types';
 
 export const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => api.getCurrentUser());
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'transactions' | 'cards'>('dashboard');
   const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(() => {
     return localStorage.getItem('privacy_mode') === 'true';
@@ -33,6 +35,16 @@ export const App: React.FC = () => {
 
   const handleToggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const handleLoginSuccess = (user: User) => {
+    setCurrentUser(user);
+    loadAllData();
+  };
+
+  const handleLogout = () => {
+    api.logout();
+    setCurrentUser(null);
   };
 
   const [isScanModalOpen, setIsScanModalOpen] = useState<boolean>(false);
@@ -86,6 +98,17 @@ export const App: React.FC = () => {
     });
   };
 
+  // Se não estiver logado, exibe a Tela de Login e Cadastro
+  if (!currentUser) {
+    return (
+      <AuthView
+        onLoginSuccess={handleLoginSuccess}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       
@@ -98,6 +121,8 @@ export const App: React.FC = () => {
         waitSeconds={rateLimitWaitSeconds}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Área Principal de Conteúdo */}

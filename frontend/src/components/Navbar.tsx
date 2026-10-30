@@ -1,6 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, Receipt, CreditCard as CardIcon, Sparkles, PlusCircle, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, Receipt, CreditCard as CardIcon, Sparkles, PlusCircle, Sun, Moon, LogOut } from 'lucide-react';
 import { QuotaBadge } from './QuotaBadge';
+import { User } from '../types';
 
 interface NavbarProps {
   currentTab: 'dashboard' | 'transactions' | 'cards';
@@ -10,6 +11,8 @@ interface NavbarProps {
   waitSeconds: number;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  currentUser: User | null;
+  onLogout: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,7 +22,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewTransaction,
   waitSeconds,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  currentUser,
+  onLogout
 }) => {
   return (
     <>
@@ -35,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Badge de Cota de IA, Botão de Tema e Lançamento */}
+        {/* Badge de Cota de IA, Botão de Tema, Perfil e Lançamento */}
         <div className="flex items-center gap-2 sm:gap-3">
           <QuotaBadge externalWaitSeconds={waitSeconds} />
           
@@ -51,6 +56,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Moon className="w-4 h-4 text-indigo-600" />
             )}
           </button>
+
+          {/* Usuário Logado & Botão de Sair */}
+          {currentUser && (
+            <div className="flex items-center gap-2 pl-1 border-l border-slate-200 dark:border-slate-800">
+              <img
+                src={currentUser.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.name}`}
+                alt={currentUser.name}
+                className="w-7 h-7 rounded-full bg-indigo-500/10 border border-indigo-500/20"
+                title={currentUser.name}
+              />
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 hidden md:block max-w-[90px] truncate">
+                {currentUser.name.split(' ')[0]}
+              </span>
+              <button
+                onClick={onLogout}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Sair / Trocar de conta"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           <button
             onClick={onOpenNewTransaction}
