@@ -17,6 +17,7 @@ public record TransactionCreateRequest(
     UUID accountId,
     UUID creditCardId,
     UUID categoryId,
-    Integer totalInstallments
+    Integer totalInstallments,
+    Boolean isRecurring
 ) {}
 

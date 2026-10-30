@@ -60,6 +60,7 @@ export interface Transaction {
   totalInstallments?: number;
   installmentGroupId?: string;
   isPaid: boolean;
+  isRecurring?: boolean;
 }
 
 export interface QuotaStatus {

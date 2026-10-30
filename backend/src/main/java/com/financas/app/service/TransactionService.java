@@ -79,6 +79,7 @@ public class TransactionService {
                         .installmentNumber(i)
                         .totalInstallments(installments)
                         .isPaid(false)
+                        .isRecurring(Boolean.TRUE.equals(req.isRecurring()))
                         .build();
 
                 created.add(transactionRepository.save(t));
@@ -115,6 +116,7 @@ public class TransactionService {
                 .amount(req.amount())
                 .date(transactionDate)
                 .isPaid(true)
+                .isRecurring(Boolean.TRUE.equals(req.isRecurring()))
                 .build();
 
         created.add(transactionRepository.save(t));

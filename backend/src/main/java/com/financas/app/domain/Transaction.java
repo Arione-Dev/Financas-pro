@@ -75,6 +75,10 @@ public class Transaction {
     @Builder.Default
     private Boolean isPaid = true;
 
+    @Column(name = "is_recurring")
+    @Builder.Default
+    private Boolean isRecurring = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

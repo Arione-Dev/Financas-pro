@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, CreditCard as CardIcon, Plus, Calendar, Layers, ShieldCheck, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { X, Check, CreditCard as CardIcon, Plus, Calendar, Layers, ShieldCheck, ChevronDown, CheckCircle2, Repeat, Sparkles } from 'lucide-react';
 import { api } from '../services/api';
 import { Account, CreditCard, Category, PaymentMethod, TransactionType } from '../types';
 import { getBankPreset } from '../constants/banks';
@@ -28,6 +28,7 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<TransactionType>('EXPENSE');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
+  const [isRecurring, setIsRecurring] = useState<boolean>(false);
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [creditCardId, setCreditCardId] = useState(cards[0]?.id || '');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
@@ -67,10 +68,11 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
         date,
         type,
         paymentMethod: type === 'INCOME' ? 'PIX' : paymentMethod,
-        accountId: paymentMethod !== 'CREDIT_CARD' || type === 'INCOME' ? accountId : undefined,
+        accountId: paymentMethod !== 'CREDIT_CARD' || type === 'INCOME' ? (accountId || accounts[0]?.id) : undefined,
         creditCardId: paymentMethod === 'CREDIT_CARD' && type === 'EXPENSE' ? creditCardId : undefined,
         categoryId: categoryId || undefined,
-        totalInstallments: paymentMethod === 'CREDIT_CARD' && type === 'EXPENSE' ? installments : 1
+        totalInstallments: paymentMethod === 'CREDIT_CARD' && type === 'EXPENSE' && !isRecurring ? installments : 1,
+        isRecurring: type === 'EXPENSE' ? isRecurring : false
       });
       onSuccess();
       onClose();
@@ -83,13 +85,30 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200 transition-colors">
+      <div className={`w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200 border transition-all ${
+        isRecurring
+          ? 'bg-amber-50/50 dark:bg-[#1A181E] border-amber-300 dark:border-amber-700/70 shadow-amber-500/10'
+          : 'bg-white dark:bg-[#131B2E] border-slate-200 dark:border-slate-800'
+      }`}>
         
         {/* Cabeçalho */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div className={`p-4 sm:p-5 border-b flex items-center justify-between transition-colors ${
+          isRecurring
+            ? 'border-amber-200/80 dark:border-amber-800/40 bg-amber-100/40 dark:bg-amber-950/20'
+            : 'border-slate-200 dark:border-slate-800'
+        }`}>
           <div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">Novo Lançamento Manual</h3>
-            <p className="text-xs text-slate-500">Registre compras, contas a pagar ou receitas</p>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">Novo Lançamento Manual</h3>
+              {isRecurring && (
+                <span className="text-[10px] font-black bg-amber-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                  <Repeat className="w-3 h-3" /> Fixa Todo Mês
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">
+              {isRecurring ? 'Despesa fixa mensal automática sem parcelamento' : 'Registre compras, contas a pagar ou receitas'}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -116,16 +135,61 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setType('INCOME')}
+              onClick={() => { setType('INCOME'); setIsRecurring(false); }}
               className={`py-2.5 text-xs font-bold rounded-xl transition-all ${
                 type === 'INCOME'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Receita / Salário
+              Receita Avulsa
             </button>
           </div>
+
+          {/* CAIXA MASSA: DESPESA FIXA RECORRENTE (TODO MÊS) */}
+          {type === 'EXPENSE' && (
+            <div
+              onClick={() => setIsRecurring(prev => !prev)}
+              className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                isRecurring
+                  ? 'bg-amber-500/15 border-amber-400 dark:border-amber-500/80 text-amber-950 dark:text-amber-100 shadow-md ring-2 ring-amber-400/40'
+                  : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  isRecurring ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                }`}>
+                  <Repeat className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold flex items-center gap-2">
+                    <span>Despesa Fixa / Recorrente</span>
+                    {isRecurring && (
+                      <span className="text-[10px] bg-amber-500 text-white font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Ativa
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[11px] opacity-75">
+                    {isRecurring
+                      ? 'Cobrança contínua todo mês (Aluguel, Internet, Netflix, Academia)'
+                      : 'Marque se for uma conta mensal fixa que se repete todo mês'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${
+                  isRecurring
+                    ? 'bg-amber-500 border-amber-500 text-white shadow-sm'
+                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                }`}>
+                  {isRecurring && <Check className="w-4 h-4 stroke-[3]" />}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Descrição */}
           <div>
@@ -135,10 +199,10 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
             <input
               type="text"
               required
-              placeholder="Ex: Compra Mercado Livre, Supermercado, Aluguel"
+              placeholder={isRecurring ? "Ex: Aluguel, Internet, Netflix, Academia" : "Ex: Compra Mercado Livre, Supermercado"}
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
@@ -146,7 +210,7 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Valor (R$)
+                Valor {isRecurring ? 'Mensal (R$)' : '(R$)'}
               </label>
               <input
                 type="number"
@@ -155,24 +219,24 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
                 placeholder="0,00"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-base font-extrabold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-base font-extrabold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Data do Gasto
+                {isRecurring ? 'Dia do Vencimento' : 'Data do Gasto'}
               </label>
               <input
                 type="date"
                 required
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
-          {/* Forma de Pagamento (quando Despesa) */}
+          {/* Forma de Pagamento */}
           {type === 'EXPENSE' && (
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
@@ -193,8 +257,10 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
                       onClick={() => setPaymentMethod(item.id as PaymentMethod)}
                       className={`py-2.5 px-3 text-xs font-bold rounded-2xl border transition-all ${
                         isSelected
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20 ring-2 ring-indigo-500/30'
-                          : 'bg-slate-50 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                          ? isRecurring
+                            ? 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/25 ring-2 ring-amber-400/40'
+                            : 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20 ring-2 ring-indigo-500/30'
+                          : 'bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
                       }`}
                     >
                       {item.label}
@@ -205,9 +271,13 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
             </div>
           )}
 
-          {/* Seleção Visual Elegante de Cartão de Crédito e Parcelamento */}
+          {/* Seleção Visual de Cartão de Crédito */}
           {paymentMethod === 'CREDIT_CARD' && type === 'EXPENSE' && (
-            <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-slate-900/80 border border-indigo-100 dark:border-indigo-900/50 space-y-4">
+            <div className={`p-4 rounded-2xl border space-y-4 transition-colors ${
+              isRecurring
+                ? 'bg-amber-50/60 dark:bg-slate-900/90 border-amber-200 dark:border-amber-800/60'
+                : 'bg-indigo-50/50 dark:bg-slate-900/80 border-indigo-100 dark:border-indigo-900/50'
+            }`}>
               
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
@@ -291,33 +361,45 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
                 </div>
               )}
 
-              {/* Seletor de Parcelamento */}
-              <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Layers className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Número de Parcelas</span>
-                  </label>
-                  {parsedAmount > 0 && (
-                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                      {installments}x de {formatBRL(installmentValue)}
+              {/* SE FOR DESPESA FIXA: NÃO MOSTRA PARCELAS (COBRANÇA MENSAL CONTÍNUA) */}
+              {isRecurring ? (
+                <div className="pt-2 border-t border-amber-200 dark:border-amber-800/60">
+                  <div className="p-3 bg-amber-500/10 border border-amber-300 dark:border-amber-700/50 rounded-xl flex items-center gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+                    <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                    <span>
+                      <strong>Assinatura / Cobrança Contínua:</strong> Sem parcelamento. O valor de <strong>{formatBRL(parsedAmount)}</strong> será cobrado 1x em cada fatura mensal automaticamente.
                     </span>
-                  )}
+                  </div>
                 </div>
+              ) : (
+                /* SE NÃO FOR FIXA: MOSTRA SELETOR DE PARCELAS NORMAL */
+                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Número de Parcelas</span>
+                    </label>
+                    {parsedAmount > 0 && (
+                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                        {installments}x de {formatBRL(installmentValue)}
+                      </span>
+                    )}
+                  </div>
 
-                <select
-                  value={installments}
-                  onChange={e => setInstallments(parseInt(e.target.value))}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value={1}>À vista (1x de {formatBRL(parsedAmount)})</option>
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(n => (
-                    <option key={n} value={n}>
-                      {n}x de {parsedAmount > 0 ? formatBRL(parsedAmount / n) : 'R$ 0,00'} (sem juros)
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <select
+                    value={installments}
+                    onChange={e => setInstallments(parseInt(e.target.value))}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value={1}>À vista (1x de {formatBRL(parsedAmount)})</option>
+                    {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(n => (
+                      <option key={n} value={n}>
+                        {n}x de {parsedAmount > 0 ? formatBRL(parsedAmount / n) : 'R$ 0,00'} (sem juros)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
             </div>
           )}
@@ -345,7 +427,7 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
                 <select
                   value={accountId || accounts[0]?.id}
                   onChange={e => setAccountId(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {accounts.map(a => (
                     <option key={a.id} value={a.id}>
@@ -365,7 +447,7 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
             <select
               value={categoryId}
               onChange={e => setCategoryId(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {categories.map(c => (
                 <option key={c.id} value={c.id}>
@@ -379,10 +461,20 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting || (paymentMethod === 'CREDIT_CARD' && cards.length === 0)}
-              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-50"
+              className={`w-full py-3.5 text-white font-bold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-50 ${
+                isRecurring
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/25 ring-2 ring-amber-400/30'
+                  : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30'
+              }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{isSubmitting ? 'Salvando...' : 'Salvar Lançamento'}</span>
+              <span>
+                {isSubmitting
+                  ? 'Salvando...'
+                  : isRecurring
+                  ? 'Salvar Despesa Fixa Recorrente'
+                  : 'Salvar Lançamento'}
+              </span>
             </button>
           </div>
         </form>
