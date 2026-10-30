@@ -116,25 +116,38 @@ export const App: React.FC = () => {
     await loadAllData();
   };
 
-  // Funções de Gestão de Saldo e Salário
+  // Funções de Gestão de Saldo, Contas e Salário
   const handleSaveAccountBalance = async (accountId: string, newBalance: number) => {
     await api.updateAccountBalance(accountId, newBalance);
     await loadAllData();
   };
 
+  const handleDeleteAccount = async (accountId: string) => {
+    await api.deleteAccount(accountId);
+    await loadAllData();
+  };
+
+  const handleCreateAccount = async (accountData: { name: string; type: 'CHECKING' | 'SAVINGS' | 'CASH'; currentBalance: number; color?: string }) => {
+    await api.createAccount(accountData);
+    await loadAllData();
+  };
+
   const handleAddSalaryOrIncome = async (accountId: string, amount: number, description: string) => {
     const acc = accounts.find(a => a.id === accountId) || accounts[0];
+    const targetAccountId = acc ? acc.id : (accounts[0]?.id || 'acc-1');
+    const currentBal = acc ? (Number(acc.currentBalance) || 0) : 0;
+
     await api.createTransaction({
       description: description || 'Salário Mensal',
       amount,
       type: 'INCOME',
       paymentMethod: 'PIX',
-      accountId: acc.id,
+      accountId: targetAccountId,
       date: new Date().toISOString().split('T')[0],
       isPaid: true
     });
     // Incrementa saldo atual
-    await api.updateAccountBalance(accountId, acc.currentBalance + amount);
+    await api.updateAccountBalance(targetAccountId, currentBal + amount);
     await loadAllData();
   };
 
@@ -184,6 +197,7 @@ export const App: React.FC = () => {
                 onOpenScan={() => setIsScanModalOpen(true)}
                 onOpenNewTransaction={() => setIsNewTxModalOpen(true)}
                 onOpenEditAccount={() => setIsEditAccountModalOpen(true)}
+                onDeleteAccount={handleDeleteAccount}
                 onSelectTab={setCurrentTab}
               />
             )}
@@ -243,12 +257,14 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Modal de Edição de Saldo e Salário */}
+      {/* Modal de Edição de Saldo, Salário e Contas */}
       <EditAccountModal
         isOpen={isEditAccountModalOpen}
         onClose={() => setIsEditAccountModalOpen(false)}
         onSaveBalance={handleSaveAccountBalance}
         onAddIncome={handleAddSalaryOrIncome}
+        onDeleteAccount={handleDeleteAccount}
+        onCreateAccount={handleCreateAccount}
         accounts={accounts}
       />
 
