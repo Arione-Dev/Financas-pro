@@ -20,6 +20,7 @@ export interface Account {
 export interface CreditCard {
   id: string;
   name: string;
+  bank?: string;
   limitTotal: number;
   closingDay: number;
   dueDay: number;

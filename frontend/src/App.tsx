@@ -6,6 +6,7 @@ import { TransactionsView } from './components/TransactionsView';
 import { CardsView } from './components/CardsView';
 import { ReceiptScanModal } from './components/ReceiptScanModal';
 import { NewTransactionModal } from './components/NewTransactionModal';
+import { EditAccountModal } from './components/EditAccountModal';
 import { AuthView } from './components/AuthView';
 import { api } from './services/api';
 import { DashboardSummary, Transaction, Account, CreditCard, Category, User } from './types';
@@ -49,6 +50,7 @@ export const App: React.FC = () => {
 
   const [isScanModalOpen, setIsScanModalOpen] = useState<boolean>(false);
   const [isNewTxModalOpen, setIsNewTxModalOpen] = useState<boolean>(false);
+  const [isEditAccountModalOpen, setIsEditAccountModalOpen] = useState<boolean>(false);
   const [rateLimitWaitSeconds, setRateLimitWaitSeconds] = useState<number>(0);
 
   const [summary, setSummary] = useState<DashboardSummary>({
@@ -98,6 +100,44 @@ export const App: React.FC = () => {
     });
   };
 
+  // Funções de Gestão de Cartões
+  const handleAddCard = async (cardData: Partial<CreditCard>) => {
+    await api.createCard(cardData);
+    await loadAllData();
+  };
+
+  const handleDeleteCard = async (cardId: string) => {
+    await api.deleteCard(cardId);
+    await loadAllData();
+  };
+
+  const handlePayInvoice = async (cardId: string, accountId: string, amount: number) => {
+    await api.payInvoice(cardId, accountId, amount);
+    await loadAllData();
+  };
+
+  // Funções de Gestão de Saldo e Salário
+  const handleSaveAccountBalance = async (accountId: string, newBalance: number) => {
+    await api.updateAccountBalance(accountId, newBalance);
+    await loadAllData();
+  };
+
+  const handleAddSalaryOrIncome = async (accountId: string, amount: number, description: string) => {
+    const acc = accounts.find(a => a.id === accountId) || accounts[0];
+    await api.createTransaction({
+      description: description || 'Salário Mensal',
+      amount,
+      type: 'INCOME',
+      paymentMethod: 'PIX',
+      accountId: acc.id,
+      date: new Date().toISOString().split('T')[0],
+      isPaid: true
+    });
+    // Incrementa saldo atual
+    await api.updateAccountBalance(accountId, acc.currentBalance + amount);
+    await loadAllData();
+  };
+
   // Se não estiver logado, exibe a Tela de Login e Cadastro
   if (!currentUser) {
     return (
@@ -143,6 +183,8 @@ export const App: React.FC = () => {
                 onTogglePrivacy={handleTogglePrivacy}
                 onOpenScan={() => setIsScanModalOpen(true)}
                 onOpenNewTransaction={() => setIsNewTxModalOpen(true)}
+                onOpenEditAccount={() => setIsEditAccountModalOpen(true)}
+                onSelectTab={setCurrentTab}
               />
             )}
 
@@ -158,7 +200,11 @@ export const App: React.FC = () => {
               <CardsView
                 cards={cards}
                 transactions={transactions}
+                accounts={accounts}
                 isPrivacyMode={isPrivacyMode}
+                onAddCard={handleAddCard}
+                onDeleteCard={handleDeleteCard}
+                onPayInvoice={handlePayInvoice}
               />
             )}
           </>
@@ -193,8 +239,16 @@ export const App: React.FC = () => {
         categories={categories}
       />
 
+      {/* Modal de Edição de Saldo e Salário */}
+      <EditAccountModal
+        isOpen={isEditAccountModalOpen}
+        onClose={() => setIsEditAccountModalOpen(false)}
+        onSaveBalance={handleSaveAccountBalance}
+        onAddIncome={handleAddSalaryOrIncome}
+        accounts={accounts}
+      />
+
     </div>
   );
 };
 export default App;
-

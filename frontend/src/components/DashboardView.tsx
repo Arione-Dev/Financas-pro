@@ -1,7 +1,8 @@
 import React from 'react';
-import { Eye, EyeOff, TrendingUp, TrendingDown, CreditCard as CardIcon, ArrowUpRight, ArrowDownRight, Layers, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, TrendingDown, CreditCard as CardIcon, ArrowUpRight, ArrowDownRight, Layers, Sparkles, Wallet, Edit3, Plus, ChevronRight } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { DashboardSummary, Transaction, Account, CreditCard } from '../types';
+import { getBankPreset } from '../constants/banks';
 
 interface DashboardViewProps {
   summary: DashboardSummary;
@@ -12,6 +13,8 @@ interface DashboardViewProps {
   onTogglePrivacy: () => void;
   onOpenScan: () => void;
   onOpenNewTransaction: () => void;
+  onOpenEditAccount?: (account?: Account) => void;
+  onSelectTab?: (tab: 'dashboard' | 'transactions' | 'cards') => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -22,7 +25,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   isPrivacyMode,
   onTogglePrivacy,
   onOpenScan,
-  onOpenNewTransaction
+  onOpenNewTransaction,
+  onOpenEditAccount,
+  onSelectTab
 }) => {
 
   const formatCurrency = (val: number) => {
@@ -49,22 +54,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="flex items-baseline gap-3 mb-6">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
             {formatCurrency(summary.totalBalance)}
-          </h2>
-          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> +12.4% este mês
+          </h1>
+          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" /> +12.4% este mês
           </span>
         </div>
 
-        {/* Três métricas do mês com alto contraste */}
-        <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+        {/* Mini cards de resumo: Entradas, Saídas, Faturas */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Entradas</span>
             </div>
-            <p className="font-extrabold text-sm sm:text-base text-emerald-600 dark:text-emerald-400">
+            <p className="font-extrabold text-sm sm:text-base text-emerald-700 dark:text-emerald-400">
               {formatCurrency(summary.monthIncome)}
             </p>
           </div>
@@ -74,7 +79,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <TrendingDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
               <span>Saídas</span>
             </div>
-            <p className="font-extrabold text-sm sm:text-base text-rose-600 dark:text-rose-400">
+            <p className="font-extrabold text-sm sm:text-base text-rose-700 dark:text-rose-400">
               {formatCurrency(summary.monthExpense)}
             </p>
           </div>
@@ -90,14 +95,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Botão Chamativo de Leitura com IA */}
-        <div className="mt-5 flex gap-2">
+        {/* Botões Chamativos: Digitalizar com IA & Lançar Salário */}
+        <div className="mt-5 flex flex-col sm:flex-row gap-3">
           <button
             onClick={onOpenScan}
             className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 text-xs sm:text-sm transition-transform active:scale-[0.98]"
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
             <span>Digitalizar Comprovante com IA</span>
+          </button>
+
+          <button
+            onClick={() => onOpenEditAccount && onOpenEditAccount()}
+            className="py-3 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 text-xs sm:text-sm transition-transform active:scale-[0.98]"
+          >
+            <Wallet className="w-4 h-4" />
+            <span>Lançar Salário / Ajustar Saldo</span>
           </button>
         </div>
       </div>
@@ -158,25 +171,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Contas Bancárias & Carteiras */}
         <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xl transition-colors">
-          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-4 flex items-center justify-between">
-            <span>Minhas Contas</span>
-            <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium cursor-pointer hover:underline">Ver todas</span>
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Minhas Contas</h3>
+            <button
+              onClick={() => onOpenEditAccount && onOpenEditAccount()}
+              className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Ajustar Saldo / Salário</span>
+            </button>
+          </div>
 
           <div className="space-y-3">
             {accounts.map(acc => (
-              <div key={acc.id} className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+              <div
+                key={acc.id}
+                onClick={() => onOpenEditAccount && onOpenEditAccount(acc)}
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer group"
+              >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white" style={{ backgroundColor: acc.color }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white shadow-sm" style={{ backgroundColor: acc.color }}>
                     {acc.name.charAt(0)}
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200">{acc.name}</h4>
+                    <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {acc.name}
+                    </h4>
                     <p className="text-[11px] text-slate-500">{acc.type === 'CHECKING' ? 'Conta Corrente' : acc.type === 'SAVINGS' ? 'Poupança' : 'Dinheiro'}</p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="flex items-center gap-2">
                   <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{formatCurrency(acc.currentBalance)}</p>
+                  <Edit3 className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 opacity-60 group-hover:opacity-100 transition-opacity" />
                 </div>
               </div>
             ))}
@@ -185,53 +211,83 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       </div>
 
-      {/* Cartões de Crédito com Faturas e Limites */}
+      {/* Cartões de Crédito com Faturas, Limites e Presets de Bancos */}
       <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xl transition-colors">
-        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-4 flex items-center justify-between">
-          <span>Cartões de Crédito</span>
-          <span className="text-xs text-slate-500 dark:text-slate-400">Limite e Vencimento</span>
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {cards.map(card => {
-            const used = 399.90; // Exemplo de fatura atual
-            const percentUsed = Math.min(100, (used / card.limitTotal) * 100);
-
-            return (
-              <div key={card.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: card.color }}></div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{card.name}</span>
-                  </div>
-                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Fecha dia {card.closingDay} • Vence dia {card.dueDay}</span>
-                </div>
-
-                <div className="flex items-baseline justify-between pt-1">
-                  <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Fatura Atual</span>
-                    <p className="font-extrabold text-base text-rose-500 dark:text-rose-400">{formatCurrency(used)}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Limite Total</span>
-                    <p className="font-semibold text-xs text-slate-700 dark:text-slate-300">{formatCurrency(card.limitTotal)}</p>
-                  </div>
-                </div>
-
-                {/* Barra de Progresso do Limite */}
-                <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${percentUsed}%`,
-                      backgroundColor: percentUsed > 80 ? '#F43F5E' : card.color
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Cartões de Crédito</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Limite e Vencimento das Faturas</p>
+          </div>
+          {onSelectTab && (
+            <button
+              onClick={() => onSelectTab('cards')}
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1"
+            >
+              <span>Gerenciar Cartões & Faturas</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
+
+        {cards.length === 0 ? (
+          <p className="text-xs text-slate-500 text-center py-6">Nenhum cartão adicionado.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {cards.map(card => {
+              const preset = getBankPreset(card.bank || card.name);
+              const used = 399.90; // Exemplo de fatura atual
+              const percentUsed = Math.min(100, (used / card.limitTotal) * 100);
+
+              return (
+                <div
+                  key={card.id}
+                  onClick={() => onSelectTab && onSelectTab('cards')}
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 cursor-pointer space-y-3 transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] text-white"
+                        style={{ backgroundColor: preset.color }}
+                      >
+                        {preset.logoLetter}
+                      </div>
+                      <div>
+                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">{card.name}</span>
+                        <span className="text-[10px] text-slate-500">{preset.name}</span>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                      Fecha dia {card.closingDay} • Vence dia {card.dueDay}
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline justify-between pt-1">
+                    <div>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Fatura Atual</span>
+                      <p className="font-extrabold text-base text-rose-500 dark:text-rose-400">{formatCurrency(used)}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Limite Total</span>
+                      <p className="font-semibold text-xs text-slate-700 dark:text-slate-300">{formatCurrency(card.limitTotal)}</p>
+                    </div>
+                  </div>
+
+                  {/* Barra de Progresso do Limite */}
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${percentUsed}%`,
+                        backgroundColor: percentUsed > 80 ? '#F43F5E' : preset.color
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Últimas Transações */}
@@ -286,4 +342,3 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     </div>
   );
 };
-
