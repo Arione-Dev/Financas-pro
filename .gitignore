@@ -1,0 +1,14 @@
+target/
+*.class
+.tools/
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+.vscode/
+*.mv.db
+*.trace.db
+**/data/
+
+
