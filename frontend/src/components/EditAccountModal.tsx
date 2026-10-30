@@ -1,35 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Wallet, PlusCircle, DollarSign, CheckCircle2, Trash2, Plus } from 'lucide-react';
+import { X, Check, Wallet, PlusCircle, DollarSign, CheckCircle2, Trash2, Plus, Sparkles, Building2 } from 'lucide-react';
 import { Account } from '../types';
 
 interface EditAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveBalance: (accountId: string, newBalance: number) => void;
-  onAddIncome: (accountId: string, amount: number, description: string) => void;
+  onSaveSalary: (salary: number) => void;
   onDeleteAccount?: (accountId: string) => void;
   onCreateAccount?: (account: { name: string; type: 'CHECKING' | 'SAVINGS' | 'CASH'; currentBalance: number; color?: string }) => void;
   accounts: Account[];
+  initialSalary?: number;
+  initialMode?: 'SALARY' | 'BALANCE' | 'NEW_ACCOUNT';
 }
 
 export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   isOpen,
   onClose,
   onSaveBalance,
-  onAddIncome,
+  onSaveSalary,
   onDeleteAccount,
   onCreateAccount,
-  accounts
+  accounts,
+  initialSalary = 3500,
+  initialMode = 'SALARY'
 }) => {
   const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '');
-  const [mode, setMode] = useState<'SALARY' | 'BALANCE' | 'NEW_ACCOUNT'>('SALARY');
-  const [amount, setAmount] = useState<string>('3500.00');
-  const [description, setDescription] = useState<string>('Salário Mensal');
+  const [mode, setMode] = useState<'SALARY' | 'BALANCE' | 'NEW_ACCOUNT'>(initialMode);
+  const [salaryAmount, setSalaryAmount] = useState<string>(String(initialSalary));
+  const [balanceAmount, setBalanceAmount] = useState<string>('0.00');
   const [newAccountName, setNewAccountName] = useState<string>('');
   const [newAccountType, setNewAccountType] = useState<'CHECKING' | 'SAVINGS' | 'CASH'>('CHECKING');
   const [newAccountBalance, setNewAccountBalance] = useState<string>('0.00');
 
-  // Garante que a conta selecionada seja sincronizada assim que accounts for carregado
+  useEffect(() => {
+    if (initialSalary) {
+      setSalaryAmount(String(initialSalary));
+    }
+  }, [initialSalary]);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode, isOpen]);
+
+  // Sincroniza a conta selecionada
   useEffect(() => {
     if (accounts.length > 0) {
       if (!selectedAccountId || !accounts.some(a => a.id === selectedAccountId)) {
@@ -41,15 +55,34 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   const currentAccount = accounts.find(a => a.id === selectedAccountId) || accounts[0];
 
   useEffect(() => {
-    if (mode === 'BALANCE' && currentAccount) {
-      setAmount(String(currentAccount.currentBalance || 0));
+    if (currentAccount) {
+      setBalanceAmount(String(currentAccount.currentBalance ?? 0));
     }
-  }, [mode, currentAccount]);
+  }, [currentAccount, selectedAccountId]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (mode === 'SALARY') {
+      const val = parseFloat(salaryAmount);
+      if (!isNaN(val) && val >= 0) {
+        onSaveSalary(val);
+        onClose();
+      }
+      return;
+    }
+
+    if (mode === 'BALANCE') {
+      const val = parseFloat(balanceAmount);
+      const targetId = selectedAccountId || accounts[0]?.id;
+      if (!isNaN(val) && val >= 0 && targetId) {
+        onSaveBalance(targetId, val);
+        onClose();
+      }
+      return;
+    }
 
     if (mode === 'NEW_ACCOUNT') {
       if (!newAccountName.trim() || !onCreateAccount) return;
@@ -64,20 +97,6 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
       onClose();
       return;
     }
-
-    const val = parseFloat(amount);
-    if (isNaN(val) || val < 0) return;
-
-    const targetId = selectedAccountId || accounts[0]?.id;
-    if (!targetId) return;
-
-    if (mode === 'SALARY') {
-      onAddIncome(targetId, val, description);
-    } else {
-      onSaveBalance(targetId, val);
-    }
-
-    onClose();
   };
 
   const handleDelete = () => {
@@ -109,8 +128,12 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
               <Wallet className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900 dark:text-white">Gerenciar Contas & Saldo</h3>
-              <p className="text-xs text-slate-500">Lançar salário, ajustar saldos ou gerenciar contas</p>
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                {mode === 'SALARY' ? 'Salário Fixo Mensal' : mode === 'BALANCE' ? 'Ajustar Saldo da Conta' : 'Nova Conta Bancária'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {mode === 'SALARY' ? 'Configuração da sua renda fixa mensal' : mode === 'BALANCE' ? 'Atualização de saldo sem criar Pix' : 'Adicione bancos e carteiras'}
+              </p>
             </div>
           </div>
           <button
@@ -123,25 +146,22 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
           
-          {/* Alternador de Ação (3 opções: Salário, Ajustar Saldo, Nova Conta) */}
+          {/* Seletor de Modo */}
           <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
             <button
               type="button"
-              onClick={() => { setMode('SALARY'); setDescription('Salário Mensal'); }}
+              onClick={() => setMode('SALARY')}
               className={`py-2 text-[11px] font-bold rounded-xl transition-all ${
                 mode === 'SALARY'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              + Salário
+              Salário Fixo
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMode('BALANCE');
-                if (currentAccount) setAmount(String(currentAccount.currentBalance));
-              }}
+              onClick={() => setMode('BALANCE')}
               className={`py-2 text-[11px] font-bold rounded-xl transition-all ${
                 mode === 'BALANCE'
                   ? 'bg-indigo-600 text-white shadow-sm'
@@ -163,17 +183,52 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
             </button>
           </div>
 
-          {/* MODO 1 & 2: Salário ou Ajuste de Saldo */}
-          {mode !== 'NEW_ACCOUNT' && (
-            <>
-              {/* Selecionar Conta */}
+          {/* MODO 1: Salário Fixo Mensal */}
+          {mode === 'SALARY' && (
+            <div className="space-y-4">
+              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl">
+                <p className="text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed font-medium">
+                  💡 <strong>Salário é um valor fixo mensal</strong>. Ajustar aqui define a sua renda base oficial sem poluir o extrato com depósitos de Pix fictícios.
+                </p>
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
-                  Qual conta você deseja gerenciar?
+                  Valor do Salário Fixo Mensal (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={salaryAmount}
+                  onChange={e => setSalaryAmount(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-lg font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Salvar Salário Fixo</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* MODO 2: Ajustar Saldo de Conta */}
+          {mode === 'BALANCE' && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
+                  Selecione a conta que deseja ajustar
                 </label>
                 {accounts.length === 0 ? (
                   <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-700 dark:text-amber-300">
-                    Nenhuma conta encontrada. Clique em "+ Nova Conta" acima para criar sua primeira conta.
+                    Nenhuma conta cadastrada. Use a aba "+ Nova Conta" acima.
                   </div>
                 ) : (
                   <select
@@ -183,63 +238,39 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
                   >
                     {accounts.map(a => (
                       <option key={a.id} value={a.id}>
-                        {a.name} — Saldo: {formatBRL(a.currentBalance)}
+                        {a.name} (Saldo Atual: {formatBRL(a.currentBalance)})
                       </option>
                     ))}
                   </select>
                 )}
               </div>
 
-              {/* Se modo Salário: Descrição */}
-              {mode === 'SALARY' && (
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
-                    Descrição da Receita
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder="Ex: Salário Mensal, Renda Extra, Bônus"
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              )}
-
-              {/* Valor */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
-                  {mode === 'SALARY' ? 'Valor do Salário / Receita (R$)' : 'Novo Saldo da Conta (R$)'}
+                  Novo Saldo Real da Conta (R$)
                 </label>
                 <input
                   type="number"
                   step="0.01"
                   required
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
+                  value={balanceAmount}
+                  onChange={e => setBalanceAmount(e.target.value)}
                   placeholder="0,00"
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-base font-extrabold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-lg font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              {/* Botão de Enviar */}
               <div className="pt-2">
                 <button
                   type="submit"
                   disabled={accounts.length === 0}
-                  className={`w-full py-3.5 text-white font-bold text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-50 ${
-                    mode === 'SALARY'
-                      ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25'
-                      : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/25'
-                  }`}
+                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-2xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>{mode === 'SALARY' ? 'Confirmar Salário (+ Entradas)' : 'Atualizar Saldo da Conta'}</span>
+                  <span>Atualizar Saldo da Conta</span>
                 </button>
               </div>
 
-              {/* Opção para Apagar a Conta Selecionada */}
               {currentAccount && onDeleteAccount && (
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
                   <button
@@ -252,12 +283,12 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
                   </button>
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {/* MODO 3: Criar Nova Conta */}
           {mode === 'NEW_ACCOUNT' && (
-            <>
+            <div className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
                   Nome da Conta / Banco
@@ -311,7 +342,7 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
                   <span>Cadastrar Nova Conta</span>
                 </button>
               </div>
-            </>
+            </div>
           )}
 
         </form>

@@ -13,7 +13,7 @@ interface DashboardViewProps {
   onTogglePrivacy: () => void;
   onOpenScan: () => void;
   onOpenNewTransaction: () => void;
-  onOpenEditAccount?: (account?: Account) => void;
+  onOpenEditAccount?: (account?: Account, initialMode?: 'SALARY' | 'BALANCE' | 'NEW_ACCOUNT') => void;
   onDeleteAccount?: (accountId: string) => void;
   onSelectTab?: (tab: 'dashboard' | 'transactions' | 'cards') => void;
 }
@@ -64,15 +64,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </span>
         </div>
 
-        {/* Mini cards de resumo: Entradas, Saídas, Faturas */}
+        {/* Mini cards de resumo: Salário Fixo Mensal, Saídas, Faturas */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Entradas</span>
+              <span>Salário Fixo</span>
             </div>
             <p className="font-extrabold text-sm sm:text-base text-emerald-700 dark:text-emerald-400">
-              {formatCurrency(summary.monthIncome)}
+              {formatCurrency(summary.monthlySalary || 3500)}
             </p>
           </div>
 
@@ -97,7 +97,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Botões Chamativos: Digitalizar com IA & Lançar Salário */}
+        {/* Botões Chamativos: Digitalizar com IA & Ajustar Salário Fixo */}
         <div className="mt-5 flex flex-col sm:flex-row gap-3">
           <button
             onClick={onOpenScan}
@@ -108,11 +108,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
 
           <button
-            onClick={() => onOpenEditAccount && onOpenEditAccount()}
+            onClick={() => onOpenEditAccount && onOpenEditAccount(undefined, 'SALARY')}
             className="py-3 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 text-xs sm:text-sm transition-transform active:scale-[0.98]"
           >
             <Wallet className="w-4 h-4" />
-            <span>Lançar Salário / Ajustar Saldo</span>
+            <span>Ajustar Salário Fixo</span>
           </button>
         </div>
       </div>
@@ -176,11 +176,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Minhas Contas</h3>
             <button
-              onClick={() => onOpenEditAccount && onOpenEditAccount()}
+              onClick={() => onOpenEditAccount && onOpenEditAccount(undefined, 'BALANCE')}
               className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Ajustar Saldo / Salário</span>
+              <span>Ajustar Saldos / Contas</span>
             </button>
           </div>
 
@@ -189,7 +189,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="text-center py-6 space-y-2">
                 <p className="text-xs text-slate-500">Nenhuma conta cadastrada.</p>
                 <button
-                  onClick={() => onOpenEditAccount && onOpenEditAccount()}
+                  onClick={() => onOpenEditAccount && onOpenEditAccount(undefined, 'NEW_ACCOUNT')}
                   className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700"
                 >
                   + Adicionar Conta
@@ -199,7 +199,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               accounts.map(acc => (
                 <div
                   key={acc.id}
-                  onClick={() => onOpenEditAccount && onOpenEditAccount(acc)}
+                  onClick={() => onOpenEditAccount && onOpenEditAccount(acc, 'BALANCE')}
                   className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
@@ -219,7 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onOpenEditAccount && onOpenEditAccount(acc);
+                        onOpenEditAccount && onOpenEditAccount(acc, 'BALANCE');
                       }}
                       title="Editar saldo"
                       className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 transition-colors"
