@@ -51,10 +51,12 @@ export const App: React.FC = () => {
   const [isScanModalOpen, setIsScanModalOpen] = useState<boolean>(false);
   const [isNewTxModalOpen, setIsNewTxModalOpen] = useState<boolean>(false);
   const [isEditAccountModalOpen, setIsEditAccountModalOpen] = useState<boolean>(false);
+  const [editAccountModalMode, setEditAccountModalMode] = useState<'SALARY' | 'BALANCE' | 'NEW_ACCOUNT'>('SALARY');
   const [rateLimitWaitSeconds, setRateLimitWaitSeconds] = useState<number>(0);
 
   const [summary, setSummary] = useState<DashboardSummary>({
     totalBalance: 0,
+    monthlySalary: api.getMonthlySalary(),
     monthIncome: 0,
     monthExpense: 0,
     openInvoicesTotal: 0,
@@ -116,9 +118,14 @@ export const App: React.FC = () => {
     await loadAllData();
   };
 
-  // Funções de Gestão de Saldo, Contas e Salário
+  // Funções de Gestão de Saldo, Contas e Salário Fixo
   const handleSaveAccountBalance = async (accountId: string, newBalance: number) => {
     await api.updateAccountBalance(accountId, newBalance);
+    await loadAllData();
+  };
+
+  const handleSaveSalary = async (newSalary: number) => {
+    api.setMonthlySalary(newSalary);
     await loadAllData();
   };
 
@@ -129,25 +136,6 @@ export const App: React.FC = () => {
 
   const handleCreateAccount = async (accountData: { name: string; type: 'CHECKING' | 'SAVINGS' | 'CASH'; currentBalance: number; color?: string }) => {
     await api.createAccount(accountData);
-    await loadAllData();
-  };
-
-  const handleAddSalaryOrIncome = async (accountId: string, amount: number, description: string) => {
-    const acc = accounts.find(a => a.id === accountId) || accounts[0];
-    const targetAccountId = acc ? acc.id : (accounts[0]?.id || 'acc-1');
-    const currentBal = acc ? (Number(acc.currentBalance) || 0) : 0;
-
-    await api.createTransaction({
-      description: description || 'Salário Mensal',
-      amount,
-      type: 'INCOME',
-      paymentMethod: 'PIX',
-      accountId: targetAccountId,
-      date: new Date().toISOString().split('T')[0],
-      isPaid: true
-    });
-    // Incrementa saldo atual
-    await api.updateAccountBalance(targetAccountId, currentBal + amount);
     await loadAllData();
   };
 
@@ -196,7 +184,10 @@ export const App: React.FC = () => {
                 onTogglePrivacy={handleTogglePrivacy}
                 onOpenScan={() => setIsScanModalOpen(true)}
                 onOpenNewTransaction={() => setIsNewTxModalOpen(true)}
-                onOpenEditAccount={() => setIsEditAccountModalOpen(true)}
+                onOpenEditAccount={(acc, mode) => {
+                  if (mode) setEditAccountModalMode(mode);
+                  setIsEditAccountModalOpen(true);
+                }}
                 onDeleteAccount={handleDeleteAccount}
                 onSelectTab={setCurrentTab}
               />
@@ -257,15 +248,17 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Modal de Edição de Saldo, Salário e Contas */}
+      {/* Modal de Edição de Saldo, Salário Fixo e Contas */}
       <EditAccountModal
         isOpen={isEditAccountModalOpen}
         onClose={() => setIsEditAccountModalOpen(false)}
         onSaveBalance={handleSaveAccountBalance}
-        onAddIncome={handleAddSalaryOrIncome}
+        onSaveSalary={handleSaveSalary}
         onDeleteAccount={handleDeleteAccount}
         onCreateAccount={handleCreateAccount}
         accounts={accounts}
+        initialSalary={summary.monthlySalary || 3500}
+        initialMode={editAccountModalMode}
       />
 
     </div>

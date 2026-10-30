@@ -41,19 +41,7 @@ let localCategories: Category[] = [
   { id: 'cat6', name: 'Salário', icon: 'wallet', color: '#10B981', type: 'INCOME' }
 ];
 
-let localTransactions: Transaction[] = getStored<Transaction[]>('financas_transactions', [
-  {
-    id: 't1',
-    description: 'Salário Mensal',
-    amount: 3500.00,
-    date: new Date().toISOString().split('T')[0],
-    type: 'INCOME',
-    paymentMethod: 'PIX',
-    category: localCategories[5],
-    account: localAccounts[0],
-    isPaid: true
-  }
-]);
+let localTransactions: Transaction[] = getStored<Transaction[]>('financas_transactions', []);
 
 export const api = {
   async register(name: string, email: string, password: string): Promise<any> {
@@ -127,18 +115,38 @@ export const api = {
     localStorage.removeItem('auth_user');
   },
 
+  getMonthlySalary(): number {
+    return getStored<number>('financas_monthly_salary', 3500.00);
+  },
+
+  setMonthlySalary(salary: number): number {
+    setStored('financas_monthly_salary', salary);
+    return salary;
+  },
+
   async getSummary(): Promise<DashboardSummary> {
+    const monthlySalary = this.getMonthlySalary();
+    const otherIncome = localTransactions
+      .filter(t => t.type === 'INCOME')
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
     try {
       const res = await fetch(`${API_BASE}/dashboard/summary`);
       if (res.ok) {
         const data = await res.json();
-        if (data && Number(data.totalBalance) > 0) return data;
+        if (data && Number(data.totalBalance) > 0) {
+          return {
+            ...data,
+            monthlySalary,
+            monthIncome: monthlySalary + otherIncome
+          };
+        }
       }
     } catch (e) {}
 
     // Recalcula dinamicamente em tempo real
     const totalBalance = localAccounts.reduce((acc, a) => acc + (Number(a.currentBalance) || 0), 0);
-    const monthIncome = localTransactions.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const monthIncome = monthlySalary + otherIncome;
     const monthExpense = localTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     const openInvoicesTotal = localTransactions
       .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid)
@@ -146,6 +154,7 @@ export const api = {
 
     return {
       totalBalance,
+      monthlySalary,
       monthIncome,
       monthExpense,
       openInvoicesTotal,
