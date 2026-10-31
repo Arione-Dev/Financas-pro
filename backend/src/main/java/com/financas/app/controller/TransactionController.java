@@ -1,8 +1,10 @@
 package com.financas.app.controller;
 
+import com.financas.app.domain.Invoice;
 import com.financas.app.domain.Transaction;
 import com.financas.app.domain.User;
 import com.financas.app.dto.request.TransactionCreateRequest;
+import com.financas.app.repository.InvoiceRepository;
 import com.financas.app.repository.TransactionRepository;
 import com.financas.app.repository.UserRepository;
 import com.financas.app.service.TransactionService;
@@ -10,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,6 +23,7 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final TransactionRepository transactionRepository;
+    private final InvoiceRepository invoiceRepository;
     private final UserRepository userRepository;
 
     @GetMapping
@@ -37,8 +41,23 @@ public class TransactionController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id) {
-        transactionRepository.deleteById(id);
+    public ResponseEntity<Void> deleteTransaction(@PathVariable String id) {
+        try {
+            UUID uuid = UUID.fromString(id.trim());
+            transactionRepository.findById(uuid).ifPresent(t -> {
+                if (t.getInvoice() != null && t.getAmount() != null) {
+                    Invoice inv = t.getInvoice();
+                    inv.setTotalAmount(inv.getTotalAmount().subtract(t.getAmount()));
+                    if (inv.getTotalAmount().compareTo(BigDecimal.ZERO) < 0) {
+                        inv.setTotalAmount(BigDecimal.ZERO);
+                    }
+                    invoiceRepository.save(inv);
+                }
+                transactionRepository.delete(t);
+            });
+        } catch (IllegalArgumentException e) {
+            // ID local ou inválido
+        }
         return ResponseEntity.noContent().build();
     }
 }

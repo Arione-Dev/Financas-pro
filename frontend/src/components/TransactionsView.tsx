@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, ArrowUpRight, ArrowDownRight, Layers, Tag } from 'lucide-react';
+import { Search, Filter, ArrowUpRight, ArrowDownRight, Layers, Tag, Trash2 } from 'lucide-react';
 import { Transaction } from '../types';
 
 interface TransactionsViewProps {

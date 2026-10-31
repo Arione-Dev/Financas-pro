@@ -13,6 +13,7 @@ interface CardsViewProps {
   onAddCard: (card: Partial<CreditCard>) => void;
   onDeleteCard: (cardId: string) => void;
   onPayInvoice: (cardId: string, accountId: string, amount: number) => void;
+  onDeleteTransaction?: (transactionId: string) => void;
 }
 
 export const CardsView: React.FC<CardsViewProps> = ({
@@ -22,7 +23,8 @@ export const CardsView: React.FC<CardsViewProps> = ({
   isPrivacyMode,
   onAddCard,
   onDeleteCard,
-  onPayInvoice
+  onPayInvoice,
+  onDeleteTransaction
 }) => {
   const [selectedCardId, setSelectedCardId] = useState<string>(cards[0]?.id || '');
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -288,18 +290,34 @@ export const CardsView: React.FC<CardsViewProps> = ({
                         <p className="text-[11px] text-slate-500">{t.date} • {t.category?.name}</p>
                       </div>
                     </div>
-                    <div className="text-right flex flex-col items-end gap-1">
-                      <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-200">
-                        {formatCurrency(t.amount)}
-                      </span>
-                      {t.isPaid ? (
-                        <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" /> Fatura Paga
+                    <div className="flex items-center gap-2">
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-200">
+                          {formatCurrency(t.amount)}
                         </span>
-                      ) : (
-                        <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                          Pendente na Fatura
-                        </span>
+                        {t.isPaid ? (
+                          <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" /> Fatura Paga
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            Pendente na Fatura
+                          </span>
+                        )}
+                      </div>
+                      {onDeleteTransaction && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Deseja excluir este lancamento de ${formatCurrency(t.amount)} ("${t.description}")?`)) {
+                              onDeleteTransaction(t.id);
+                            }
+                          }}
+                          title="Excluir este lancamento"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ml-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
                   </div>
