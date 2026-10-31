@@ -443,7 +443,37 @@ export const api = {
       return t;
     });
 
-    if (accountId !== 'SALARIO') {
+    if (accountId === 'SALARIO') {
+      const firstTx = localTransactions.find(t => transactionIds.includes(t.id));
+      const cleanTitle = firstTx ? firstTx.description.replace(/\s*\(\d+\/\d+\)$/, '') : 'Compra Cartão';
+      const salaryExpenseTx: Transaction = {
+        id: 'tx-pay-salario-group-' + Date.now(),
+        description: `Quitação Total - ${cleanTitle}`,
+        amount: totalAmount,
+        date: new Date().toISOString().split('T')[0],
+        type: 'EXPENSE',
+        paymentMethod: 'PIX',
+        category: firstTx?.category || localCategories[0],
+        account: { id: 'SALARIO', name: 'Salário Mensal', type: 'CHECKING', currentBalance: 0, color: '#10B981' },
+        isPaid: true
+      };
+      localTransactions.unshift(salaryExpenseTx);
+      try {
+        await fetch(`${API_BASE}/transactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: salaryExpenseTx.description,
+            amount: salaryExpenseTx.amount,
+            date: salaryExpenseTx.date,
+            type: 'EXPENSE',
+            paymentMethod: 'PIX',
+            accountId: 'SALARIO',
+            categoryId: firstTx?.category?.id
+          })
+        });
+      } catch (e) {}
+    } else if (accountId !== 'ALREADY_PAID') {
       const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
       if (acc) {
         acc.currentBalance = Math.max(0, acc.currentBalance - totalAmount);
@@ -512,10 +542,42 @@ export const api = {
     const tx = localTransactions.find(t => t.id === transactionId);
     if (tx) {
       tx.isPaid = true;
-      const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
-      if (acc) {
-        acc.currentBalance = Math.max(0, acc.currentBalance - (tx.amount || 0));
-        setStored('financas_accounts', localAccounts);
+
+      if (accountId === 'SALARIO') {
+        // Registra saída do salário do mês atual
+        const salaryExpenseTx: Transaction = {
+          id: 'tx-pay-salario-' + Date.now(),
+          description: `Pagamento Parcela - ${tx.description}`,
+          amount: tx.amount,
+          date: new Date().toISOString().split('T')[0],
+          type: 'EXPENSE',
+          paymentMethod: 'PIX',
+          category: tx.category || localCategories[0],
+          account: { id: 'SALARIO', name: 'Salário Mensal', type: 'CHECKING', currentBalance: 0, color: '#10B981' },
+          isPaid: true
+        };
+        localTransactions.unshift(salaryExpenseTx);
+        try {
+          await fetch(`${API_BASE}/transactions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              description: salaryExpenseTx.description,
+              amount: salaryExpenseTx.amount,
+              date: salaryExpenseTx.date,
+              type: 'EXPENSE',
+              paymentMethod: 'PIX',
+              accountId: 'SALARIO',
+              categoryId: tx.category?.id
+            })
+          });
+        } catch (e) {}
+      } else if (accountId !== 'ALREADY_PAID') {
+        const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
+        if (acc) {
+          acc.currentBalance = Math.max(0, acc.currentBalance - (tx.amount || 0));
+          setStored('financas_accounts', localAccounts);
+        }
       }
       setStored('financas_transactions', localTransactions);
     }
@@ -530,10 +592,40 @@ export const api = {
       });
     } catch (e) {}
 
-    const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
-    if (acc) {
-      acc.currentBalance = Math.max(0, acc.currentBalance - amount);
-      setStored('financas_accounts', localAccounts);
+    const card = localCards.find(c => c.id === cardId);
+    if (accountId === 'SALARIO') {
+      const salaryExpenseTx: Transaction = {
+        id: 'tx-pay-salario-invoice-' + Date.now(),
+        description: `Pagamento Fatura - ${card?.name || 'Cartão'}`,
+        amount: amount,
+        date: new Date().toISOString().split('T')[0],
+        type: 'EXPENSE',
+        paymentMethod: 'PIX',
+        category: localCategories[0],
+        account: { id: 'SALARIO', name: 'Salário Mensal', type: 'CHECKING', currentBalance: 0, color: '#10B981' },
+        isPaid: true
+      };
+      localTransactions.unshift(salaryExpenseTx);
+      try {
+        await fetch(`${API_BASE}/transactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: salaryExpenseTx.description,
+            amount: salaryExpenseTx.amount,
+            date: salaryExpenseTx.date,
+            type: 'EXPENSE',
+            paymentMethod: 'PIX',
+            accountId: 'SALARIO'
+          })
+        });
+      } catch (e) {}
+    } else if (accountId !== 'ALREADY_PAID') {
+      const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
+      if (acc) {
+        acc.currentBalance = Math.max(0, acc.currentBalance - amount);
+        setStored('financas_accounts', localAccounts);
+      }
     }
 
     // Marca as transações em aberto deste cartão como PAGAS (dando baixa nas parcelas da fatura)
@@ -544,17 +636,6 @@ export const api = {
       return t;
     });
 
-    const payTx: Transaction = {
-      id: 'tx-pay-' + Date.now(),
-      description: 'Pagamento de Fatura Cartão',
-      amount: amount,
-      date: new Date().toISOString().split('T')[0],
-      type: 'EXPENSE',
-      paymentMethod: 'DEBIT_CARD',
-      account: acc,
-      isPaid: true
-    };
-    localTransactions.unshift(payTx);
     setStored('financas_transactions', localTransactions);
   },
 
