@@ -139,6 +139,26 @@ export const api = {
     return getStored<number>('financas_monthly_salary', 0.00);
   },
 
+  getSalaryExpenses(): number {
+    const now = new Date();
+    const curY = now.getFullYear();
+    const curM = now.getMonth() + 1;
+    return localTransactions
+      .filter(t => {
+        if (t.type !== 'EXPENSE' || t.paymentMethod === 'CREDIT_CARD') return false;
+        if (!t.date) return false;
+        const [y, m] = t.date.split('-').map(Number);
+        return y === curY && m === curM;
+      })
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+  },
+
+  getSalaryRemaining(): number {
+    const salary = this.getMonthlySalary();
+    const expenses = this.getSalaryExpenses();
+    return Math.max(0, salary - expenses);
+  },
+
   setMonthlySalary(salary: number): number {
     setStored('financas_monthly_salary', salary);
     return salary;
@@ -182,13 +202,26 @@ export const api = {
       }
     } catch (e) {}
 
-    const totalBalance = localAccounts.reduce((acc, a) => acc + (Number(a.currentBalance) || 0), 0);
-    const monthIncome = monthlySalary + otherIncome;
+    // Despesas do mês corrente
     const expenseTransactions = localTransactions.filter(t => t.type === 'EXPENSE' && isCurrentMonth(t.date));
     const monthExpense = expenseTransactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    // Despesas pagas em dinheiro/débito/pix (que reduzem o salário do mês)
+    const cashExpenses = expenseTransactions
+      .filter(t => t.paymentMethod !== 'CREDIT_CARD')
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    const salaryRemaining = Math.max(0, monthlySalary - cashExpenses);
+
+    // Fatura de cartão: ESTRITAMENTE compras com cartão (CREDIT_CARD). Pix/Débito/Dinheiro NUNCA entram aqui.
     const openInvoicesTotal = localTransactions
       .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid && isCurrentOrPastMonth(t.date))
       .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    // Saldo Total Disponível = Saldo em contas + Saldo restante do salário do mês
+    const accountsBalance = localAccounts.reduce((acc, a) => acc + (Number(a.currentBalance) || 0), 0);
+    const totalBalance = accountsBalance + salaryRemaining;
+    const monthIncome = monthlySalary + otherIncome;
 
     // Agrupa estritamente as despesas reais por categoria (se não houver despesas, a lista fica vazia)
     const categoryTotals: Record<string, { name: string; color: string; amount: number }> = {};
@@ -470,7 +503,15 @@ export const api = {
     const baseAmount = Number((data.amount / installments).toFixed(2));
     const createdList: Transaction[] = [];
 
-    const targetAcc = localAccounts.find(a => String(a.id).toLowerCase() === String(data.accountId || '').toLowerCase()) || localAccounts[0];
+    const isFromSalary = data.accountId === 'SALARIO' || (!data.accountId && data.paymentMethod !== 'CREDIT_CARD');
+    const salaryAcc: Account = {
+      id: 'SALARIO',
+      name: 'Salário Mensal',
+      type: 'CHECKING',
+      currentBalance: this.getSalaryRemaining(),
+      color: '#10B981'
+    };
+    const targetAcc = isFromSalary ? salaryAcc : (localAccounts.find(a => String(a.id).toLowerCase() === String(data.accountId || '').toLowerCase()) || localAccounts[0]);
     const targetCard = localCards.find(c => String(c.id).toLowerCase() === String(data.creditCardId || '').toLowerCase()) || localCards[0];
 
     for (let i = 1; i <= installments; i++) {

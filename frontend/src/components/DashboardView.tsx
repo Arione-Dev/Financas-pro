@@ -117,14 +117,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Mini cards de resumo: Salário Fixo Mensal, Saídas, Faturas */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <div>
+                    <div>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Salário Fixo</span>
+              <span>Salário do Mês</span>
             </div>
             <p className="font-extrabold text-sm sm:text-base text-emerald-700 dark:text-emerald-400">
-              {formatCurrency(summary.monthlySalary || 3500)}
+              {formatCurrency(summary.monthlySalary || 0)}
             </p>
+            {summary.monthlySalary > 0 && (
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                Resta: {formatCurrency(summary.salaryRemaining !== undefined ? summary.salaryRemaining : summary.monthlySalary)}
+              </span>
+            )}
           </div>
 
           <div>

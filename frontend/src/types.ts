@@ -93,6 +93,8 @@ export interface ReceiptAnalysis {
 export interface DashboardSummary {
   totalBalance: number;
   monthlySalary: number;
+  salaryRemaining?: number;
+  salaryExpenses?: number;
   monthIncome: number;
   monthExpense: number;
   openInvoicesTotal: number;

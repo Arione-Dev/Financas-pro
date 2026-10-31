@@ -29,7 +29,8 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
   const [type, setType] = useState<TransactionType>('EXPENSE');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
-  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
+  const [accountId, setAccountId] = useState('SALARIO');
+  const salaryBalance = api.getSalaryRemaining();
   const [creditCardId, setCreditCardId] = useState(cards[0]?.id || '');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
   const [installments, setInstallments] = useState(1);
@@ -254,7 +255,12 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setPaymentMethod(item.id as PaymentMethod)}
+                      onClick={() => {
+                        setPaymentMethod(item.id as PaymentMethod);
+                        if (item.id !== 'CREDIT_CARD') {
+                          setAccountId('SALARIO');
+                        }
+                      }}
                       className={`py-2.5 px-3 text-xs font-bold rounded-2xl border transition-all ${
                         isSelected
                           ? isRecurring
@@ -425,10 +431,13 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
                 </div>
               ) : (
                 <select
-                  value={accountId || accounts[0]?.id}
+                  value={accountId}
                   onChange={e => setAccountId(e.target.value)}
                   className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
+                  <option value="SALARIO">
+                    💰 Salário do Mês — Saldo: {formatBRL(salaryBalance)}
+                  </option>
                   {accounts.map(a => (
                     <option key={a.id} value={a.id}>
                       {a.name} — Saldo: {formatBRL(a.currentBalance)}
