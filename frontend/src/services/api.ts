@@ -21,8 +21,7 @@ function setStored<T>(key: string, value: T): void {
 
 // Dados iniciais
 const initialAccounts: Account[] = [
-  { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 2500.00, color: '#8A05BE' },
-  { id: 'acc-2', name: 'Poupança / Reserva', type: 'SAVINGS', currentBalance: 5000.00, color: '#FF7A00' }
+  { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 0.00, color: '#8A05BE' }
 ];
 
 const initialCards: CreditCard[] = [
@@ -115,8 +114,21 @@ export const api = {
     localStorage.removeItem('auth_user');
   },
 
+  async resetAllFinancialData(): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/dashboard/reset-all`, { method: 'POST' });
+    } catch (e) {}
+    localTransactions = [];
+    localAccounts = [
+      { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 0.00, color: '#8A05BE' }
+    ];
+    setStored('financas_transactions', []);
+    setStored('financas_accounts', localAccounts);
+    setStored('financas_monthly_salary', 0.00);
+  },
+
   getMonthlySalary(): number {
-    return getStored<number>('financas_monthly_salary', 3500.00);
+    return getStored<number>('financas_monthly_salary', 0.00);
   },
 
   setMonthlySalary(salary: number): number {
@@ -134,7 +146,7 @@ export const api = {
       const res = await fetch(`${API_BASE}/dashboard/summary`);
       if (res.ok) {
         const data = await res.json();
-        if (data && Number(data.totalBalance) > 0) {
+        if (data && (Number(data.totalBalance) >= 0 || Number(data.monthExpense) >= 0)) {
           return {
             ...data,
             monthlySalary,

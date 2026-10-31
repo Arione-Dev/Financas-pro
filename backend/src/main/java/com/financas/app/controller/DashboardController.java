@@ -1,6 +1,7 @@
 package com.financas.app.controller;
 
 import com.financas.app.domain.Account;
+import com.financas.app.domain.CreditCard;
 import com.financas.app.domain.Invoice;
 import com.financas.app.domain.Transaction;
 import com.financas.app.domain.User;
@@ -11,6 +12,7 @@ import com.financas.app.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,6 +31,7 @@ public class DashboardController {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final InvoiceRepository invoiceRepository;
+    private final CreditCardRepository creditCardRepository;
     private final UserRepository userRepository;
 
     @GetMapping("/summary")
@@ -103,6 +106,36 @@ public class DashboardController {
                 openInvoicesTotal,
                 breakdowns
         ));
+    }
+
+    @PostMapping("/reset-all")
+    public ResponseEntity<Map<String, String>> resetAllData() {
+        User user = userRepository.findAll().stream().findFirst().orElse(null);
+        if (user != null) {
+            UUID userId = user.getId();
+            // 1. Apaga todas as transações do usuário
+            List<Transaction> txs = transactionRepository.findByUserIdOrderByDateDesc(userId);
+            transactionRepository.deleteAll(txs);
+
+            // 2. Zera as faturas dos cartões
+            List<CreditCard> cards = creditCardRepository.findByUserIdAndIsActiveTrue(userId);
+            for (CreditCard c : cards) {
+                List<Invoice> invs = invoiceRepository.findByCreditCardIdOrderByReferenceYearDescReferenceMonthDesc(c.getId());
+                for (Invoice inv : invs) {
+                    inv.setTotalAmount(BigDecimal.ZERO);
+                    invoiceRepository.save(inv);
+                }
+            }
+
+            // 3. Zera o saldo das contas
+            List<Account> accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+            for (Account acc : accounts) {
+                acc.setCurrentBalance(BigDecimal.ZERO);
+                acc.setInitialBalance(BigDecimal.ZERO);
+                accountRepository.save(acc);
+            }
+        }
+        return ResponseEntity.ok(Map.of("message", "Todos os dados financeiros foram resetados com sucesso!"));
     }
 }
 

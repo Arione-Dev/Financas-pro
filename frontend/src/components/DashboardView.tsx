@@ -13,6 +13,7 @@ interface DashboardViewProps {
   onTogglePrivacy: () => void;
   onOpenScan: () => void;
   onOpenNewTransaction: () => void;
+  onResetAllData?: () => void;
   onOpenEditAccount?: (account?: Account, initialMode?: 'SALARY' | 'BALANCE' | 'NEW_ACCOUNT') => void;
   onDeleteAccount?: (accountId: string) => void;
   onSelectTab?: (tab: 'dashboard' | 'transactions' | 'cards') => void;
@@ -27,6 +28,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onTogglePrivacy,
   onOpenScan,
   onOpenNewTransaction,
+  onResetAllData,
   onOpenEditAccount,
   onDeleteAccount,
   onSelectTab
@@ -177,13 +179,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xl transition-colors">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Minhas Contas</h3>
-            <button
-              onClick={() => onOpenEditAccount && onOpenEditAccount(undefined, 'BALANCE')}
-              className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Ajustar Saldos / Contas</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {onResetAllData && (
+                <button
+                  type="button"
+                  onClick={onResetAllData}
+                  title="Zerar todos os lançamentos e saldos"
+                  className="text-xs text-rose-500 hover:text-rose-600 font-semibold hover:underline flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Zerar Dados</span>
+                </button>
+              )}
+              <button
+                onClick={() => onOpenEditAccount && onOpenEditAccount(undefined, 'BALANCE')}
+                className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Ajustar Saldos / Contas</span>
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">
