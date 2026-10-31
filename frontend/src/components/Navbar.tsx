@@ -29,25 +29,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <>
       {/* HEADER SUPERIOR (Visível em celular e PC) */}
-      <header className="sticky top-0 z-30 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center font-black text-white text-base shadow-lg shadow-indigo-600/30">
+      <header className="sticky top-0 z-30 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-3.5 sm:px-8 py-3 sm:py-3.5 flex items-center justify-between transition-colors">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="hidden sm:flex w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 items-center justify-center font-black text-white text-sm shadow-md shadow-indigo-600/30 shrink-0">
             F
           </div>
-          <div>
-            <h1 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">Finanças Pro</h1>
+          <div className="min-w-0">
+            <h1 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight truncate">Finanças Pro</h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 hidden sm:block">PWA • Gestão Inteligente com IA</p>
           </div>
         </div>
 
         {/* Badge de Cota de IA, Botão de Tema, Perfil e Lançamento */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <QuotaBadge externalWaitSeconds={waitSeconds} />
           
           {/* Botão de Alternar Modo Claro / Escuro */}
           <button
             onClick={onToggleTheme}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors shrink-0"
             title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
           >
             {theme === 'dark' ? (
@@ -59,11 +59,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Usuário Logado & Botão de Sair */}
           {currentUser && (
-            <div className="flex items-center gap-2 pl-1 border-l border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-slate-800 shrink-0">
               <img
                 src={currentUser.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.name}`}
                 alt={currentUser.name}
-                className="w-7 h-7 rounded-full bg-indigo-500/10 border border-indigo-500/20"
+                className="w-7 h-7 rounded-full bg-indigo-500/10 border border-indigo-500/20 shrink-0"
                 title={currentUser.name}
               />
               <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 hidden md:block max-w-[90px] truncate">
@@ -71,7 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
               <button
                 onClick={onLogout}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
                 title="Sair / Trocar de conta"
               >
                 <LogOut className="w-4 h-4" />
@@ -81,11 +81,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={onOpenNewTransaction}
-            className="flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 bg-indigo-600 sm:bg-slate-100 sm:dark:bg-slate-800 hover:bg-indigo-700 sm:hover:bg-slate-200 sm:dark:hover:bg-slate-700 text-white sm:text-slate-800 sm:dark:text-slate-200 text-xs font-semibold rounded-xl border border-transparent sm:border-slate-300 sm:dark:border-slate-700 shadow-sm transition-transform active:scale-95"
+            className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 transition-colors shrink-0"
             title="Novo Lançamento"
           >
-            <PlusCircle className="w-3.5 h-3.5 text-white sm:text-indigo-500" />
-            <span className="hidden sm:inline">Lançar</span>
+            <PlusCircle className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Lançar</span>
           </button>
         </div>
       </header>
