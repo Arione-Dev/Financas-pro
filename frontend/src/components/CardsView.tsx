@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { CreditCard as CardIcon, Calendar, Layers, ShieldCheck, Plus, Trash2, CheckCircle2, ChevronRight, AlertCircle, Check } from 'lucide-react';
+import { CreditCard as CardIcon, Calendar, Layers, ShieldCheck, Plus, Trash2, CheckCircle2, ChevronRight, ChevronDown, ChevronUp, AlertCircle, Check, Wallet } from 'lucide-react';
 import { CreditCard, Transaction, Account } from '../types';
 import { BANK_PRESETS, getBankPreset } from '../constants/banks';
 import { CardModal } from './CardModal';
 import { PayInvoiceModal } from './PayInvoiceModal';
+import { PayInstallmentModal } from './PayInstallmentModal';
 
 interface CardsViewProps {
   cards: CreditCard[];
@@ -13,6 +14,7 @@ interface CardsViewProps {
   onAddCard: (card: Partial<CreditCard>) => void;
   onDeleteCard: (cardId: string) => void;
   onPayInvoice: (cardId: string, accountId: string, amount: number) => void;
+  onPayInstallment?: (transactionId: string, accountId: string) => void;
   onDeleteTransaction?: (transactionId: string) => void;
 }
 
@@ -24,18 +26,21 @@ export const CardsView: React.FC<CardsViewProps> = ({
   onAddCard,
   onDeleteCard,
   onPayInvoice,
+  onPayInstallment,
   onDeleteTransaction
 }) => {
   const [selectedCardId, setSelectedCardId] = useState<string>(cards[0]?.id || '');
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState<boolean>(false);
+  const [payingInstallmentTx, setPayingInstallmentTx] = useState<Transaction | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const formatCurrency = (val: number) => {
     if (isPrivacyMode) return '••••••';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
-  // Sincroniza o cartao selecionado caso a lista de cartoes mude
+  // Sincroniza o cartão selecionado caso a lista de cartões mude
   React.useEffect(() => {
     if (cards.length > 0 && (!selectedCardId || !cards.some(c => String(c.id).toLowerCase() === String(selectedCardId).toLowerCase()))) {
       setSelectedCardId(cards[0].id);
@@ -52,6 +57,85 @@ export const CardsView: React.FC<CardsViewProps> = ({
 
   // Cálculo da fatura atual do cartão selecionado (apenas parcelas e compras em aberto/pendentes)
   const currentInvoiceTotal = cardTransactions.filter(t => !t.isPaid).reduce((acc, t) => acc + (t.amount || 0), 0);
+
+  // Agrupamento Inteligente de Compras e Parcelas
+  const groupedPurchases = React.useMemo(() => {
+    const groupsMap = new Map<string, Transaction[]>();
+
+    cardTransactions.forEach(t => {
+      // Extrai nome base removendo o sufixo (X/Y) se existir
+      const match = t.description.match(/^(.*?)(?:\s*\(\d+\/\d+\))?$/);
+      const baseName = match && match[1] ? match[1].trim() : t.description;
+      
+      // Agrupa por installmentGroupId ou por nome base + total de parcelas
+      const groupKey = t.installmentGroupId || `${baseName}__${t.totalInstallments || 1}`;
+      
+      if (!groupsMap.has(groupKey)) {
+        groupsMap.set(groupKey, []);
+      }
+      groupsMap.get(groupKey)!.push(t);
+    });
+
+    const list: {
+      key: string;
+      title: string;
+      categoryName?: string;
+      totalInstallments: number;
+      installmentAmount: number;
+      totalAmount: number;
+      paidAmount: number;
+      unpaidAmount: number;
+      paidCount: number;
+      unpaidCount: number;
+      items: Transaction[];
+      hasMultipleInstallments: boolean;
+    }[] = [];
+
+    groupsMap.forEach((items, key) => {
+      // Ordenação rigorosa da primeira parcela até a última (1/N até N/N)
+      items.sort((a, b) => {
+        const numA = a.installmentNumber ?? 1;
+        const numB = b.installmentNumber ?? 1;
+        if (numA !== numB) return numA - numB;
+        return a.date.localeCompare(b.date);
+      });
+
+      const first = items[0];
+      const match = first.description.match(/^(.*?)(?:\s*\(\d+\/\d+\))?$/);
+      const title = match && match[1] ? match[1].trim() : first.description;
+      
+      const totalInstallments = first.totalInstallments || items.length;
+      const totalAmount = items.reduce((acc, t) => acc + (t.amount || 0), 0);
+      const paidItems = items.filter(t => t.isPaid);
+      const unpaidItems = items.filter(t => !t.isPaid);
+      const paidAmount = paidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
+      const unpaidAmount = unpaidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
+
+      list.push({
+        key,
+        title,
+        categoryName: first.category?.name,
+        totalInstallments,
+        installmentAmount: first.amount,
+        totalAmount,
+        paidAmount,
+        unpaidAmount,
+        paidCount: paidItems.length,
+        unpaidCount: unpaidItems.length,
+        items,
+        hasMultipleInstallments: totalInstallments > 1 || items.length > 1
+      });
+    });
+
+    return list;
+  }, [cardTransactions]);
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   const handleDelete = (cardId: string, cardName: string) => {
     if (confirm(`Tem certeza que deseja remover o cartão "${cardName}"?`)) {
@@ -262,66 +346,194 @@ export const CardsView: React.FC<CardsViewProps> = ({
             </div>
           </div>
 
-          {/* Lançamentos e Parcelas desta fatura */}
+          {/* Lançamentos & Parcelamentos Agrupados com Expansão Inteligente */}
           <div>
-            <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-3">
-              Lançamentos & Parcelamentos desta Fatura
-            </h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                Compras & Parcelamentos do Cartão
+              </h4>
+              <span className="text-[11px] text-slate-400">
+                {groupedPurchases.length} {groupedPurchases.length === 1 ? 'compra registrada' : 'compras registradas'}
+              </span>
+            </div>
 
-            {cardTransactions.length === 0 ? (
-              <p className="text-xs text-slate-500 py-4 text-center">Nenhum lançamento no cartão neste ciclo.</p>
+            {groupedPurchases.length === 0 ? (
+              <p className="text-xs text-slate-500 py-6 text-center">Nenhum lançamento no cartão neste ciclo.</p>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                {cardTransactions.map(t => (
-                  <div key={t.id} className="py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                        <CardIcon className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                          {t.description}
-                          {t.totalInstallments && t.totalInstallments > 1 && (
-                            <span className="text-[10px] text-indigo-600 dark:text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                              <Layers className="w-2.5 h-2.5" /> {t.installmentNumber}/{t.totalInstallments}
+              <div className="space-y-3">
+                {groupedPurchases.map(group => {
+                  const isExpanded = !!expandedGroups[group.key];
+                  const allPaid = group.unpaidCount === 0;
+
+                  return (
+                    <div
+                      key={group.key}
+                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 overflow-hidden transition-all shadow-sm"
+                    >
+                      {/* Linha Resumo da Compra (Clicável para expandir parcelas) */}
+                      <div
+                        onClick={() => toggleGroup(group.key)}
+                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            allPaid
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                          }`}>
+                            {group.hasMultipleInstallments ? (
+                              <Layers className="w-5 h-5" />
+                            ) : (
+                              <CardIcon className="w-5 h-5" />
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                                {group.title}
+                              </h4>
+                              {group.hasMultipleInstallments && (
+                                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <Layers className="w-2.5 h-2.5" />
+                                  {group.totalInstallments}x de {formatCurrency(group.installmentAmount)}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                              <span>Total da compra: <strong className="text-slate-700 dark:text-slate-300">{formatCurrency(group.totalAmount)}</strong></span>
+                              {group.categoryName && (
+                                <>
+                                  <span>•</span>
+                                  <span>{group.categoryName}</span>
+                                </>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Lado Direito do Resumo da Compra */}
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
+                              {formatCurrency(group.totalAmount)}
                             </span>
-                          )}
-                        </h4>
-                        <p className="text-[11px] text-slate-500">{t.date} • {t.category?.name}</p>
+                            {allPaid ? (
+                              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" /> Liquidada
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                {group.unpaidCount} {group.unpaidCount === 1 ? 'pendente' : 'pendentes'}
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                            title={isExpanded ? 'Ocultar parcelas' : 'Ver parcelas'}
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5" />
+                            )}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-right flex flex-col items-end gap-1">
-                        <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-200">
-                          {formatCurrency(t.amount)}
-                        </span>
-                        {t.isPaid ? (
-                          <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                            <Check className="w-2.5 h-2.5 stroke-[3]" /> Fatura Paga
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                            Pendente na Fatura
-                          </span>
-                        )}
-                      </div>
-                      {onDeleteTransaction && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Deseja excluir este lancamento de ${formatCurrency(t.amount)} ("${t.description}")?`)) {
-                              onDeleteTransaction(t.id);
-                            }
-                          }}
-                          title="Excluir este lancamento"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ml-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+
+                      {/* Seção Expandida: Lista das Parcelas (1 a N, sempre da primeira à última) */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40 p-3 sm:p-4 space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 px-2 pb-1">
+                            <span>Ordem das Parcelas (1/{group.totalInstallments} a {group.totalInstallments}/{group.totalInstallments})</span>
+                            <span>Ação Individual</span>
+                          </div>
+
+                          <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                            {group.items.map((t) => {
+                              const instNumber = t.installmentNumber || 1;
+                              const totalInst = t.totalInstallments || group.totalInstallments;
+
+                              return (
+                                <div
+                                  key={t.id}
+                                  className="py-2.5 px-2 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-900/60 rounded-xl transition-colors"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center ${
+                                      t.isPaid
+                                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                        : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                    }`}>
+                                      {instNumber}
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                        Parcela {instNumber}/{totalInst}
+                                      </p>
+                                      <p className="text-[11px] text-slate-500">
+                                        Vencimento: {t.date}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-right">
+                                      <span className="font-extrabold text-xs text-slate-900 dark:text-white block">
+                                        {formatCurrency(t.amount)}
+                                      </span>
+                                      {t.isPaid ? (
+                                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                          <Check className="w-2.5 h-2.5 stroke-[3]" /> Fatura Paga
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                          Pendente
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Botão Pagar Parcela Individual */}
+                                    {!t.isPaid && onPayInstallment && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setPayingInstallmentTx(t)}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/25 transition-transform active:scale-95"
+                                        title="Pagar apenas esta parcela com confirmação"
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <span>Pagar</span>
+                                      </button>
+                                    )}
+
+                                    {/* Botão de Excluir Parcela */}
+                                    {onDeleteTransaction && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Deseja excluir esta parcela (${instNumber}/${totalInst}) de ${formatCurrency(t.amount)}?`)) {
+                                            onDeleteTransaction(t.id);
+                                          }
+                                        }}
+                                        title="Excluir esta parcela"
+                                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -335,7 +547,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
         onSave={onAddCard}
       />
 
-      {/* Modal de Dar Baixa na Fatura */}
+      {/* Modal de Dar Baixa na Fatura Total */}
       {selectedCard && (
         <PayInvoiceModal
           isOpen={isPayModalOpen}
@@ -346,6 +558,19 @@ export const CardsView: React.FC<CardsViewProps> = ({
           accounts={accounts}
         />
       )}
+
+      {/* Modal de Pagamento de Parcela Individual */}
+      <PayInstallmentModal
+        isOpen={!!payingInstallmentTx}
+        onClose={() => setPayingInstallmentTx(null)}
+        onConfirm={(txId, accId) => {
+          if (onPayInstallment) {
+            onPayInstallment(txId, accId);
+          }
+        }}
+        transaction={payingInstallmentTx}
+        accounts={accounts}
+      />
     </div>
   );
 };

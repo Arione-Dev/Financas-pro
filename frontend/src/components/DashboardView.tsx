@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, EyeOff, TrendingUp, TrendingDown, CreditCard as CardIcon, ArrowUpRight, ArrowDownRight, Layers, Sparkles, Wallet, Edit3, Plus, ChevronRight, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, CreditCard as CardIcon, ArrowUpRight, ArrowDownRight, Layers, Sparkles, Wallet, Edit3, Plus, ChevronRight, Trash2 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { DashboardSummary, Transaction, Account, CreditCard } from '../types';
 import { getBankPreset } from '../constants/banks';
@@ -34,6 +34,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectTab
 }) => {
 
+  // Cálculo inteligente e real da taxa mensal
+  const monthlyRate = React.useMemo(() => {
+    const income = (summary.monthIncome || 0) + (summary.monthlySalary || 0);
+    const expense = summary.monthExpense || 0;
+    const balance = summary.totalBalance || 0;
+
+    // Se tudo for zero ou sem movimentações, estado neutro
+    if (balance === 0 && income === 0 && expense === 0) {
+      return { percent: 0, status: 'neutral', label: '0.0% no mês' };
+    }
+
+    // Se temos entradas no mês
+    if (income > 0) {
+      const net = income - expense;
+      const rate = (net / income) * 100;
+      const formatted = Math.abs(rate).toFixed(1);
+      if (rate > 0) {
+        return { percent: rate, status: 'positive', label: `+${formatted}% no mês` };
+      } else if (rate < 0) {
+        return { percent: rate, status: 'negative', label: `-${formatted}% no mês` };
+      }
+      return { percent: 0, status: 'neutral', label: '0.0% no mês' };
+    }
+
+    // Se não há receitas registradas no mês mas há despesas
+    if (expense > 0) {
+      return { percent: -100, status: 'negative', label: '-100% no mês' };
+    }
+
+    // Se tem saldo acumulado positivo e nenhuma despesa neste mês
+    if (balance > 0) {
+      return { percent: 0, status: 'neutral', label: 'Estável no mês' };
+    }
+
+    return { percent: 0, status: 'neutral', label: '0.0% no mês' };
+  }, [summary]);
+
   const formatCurrency = (val: number) => {
     if (isPrivacyMode) return '••••••';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -61,9 +98,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
             {formatCurrency(summary.totalBalance)}
           </h1>
-          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> +12.4% este mês
-          </span>
+          {monthlyRate.status === 'positive' && (
+            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+              <TrendingUp className="w-3 h-3" /> {monthlyRate.label}
+            </span>
+          )}
+          {monthlyRate.status === 'negative' && (
+            <span className="text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+              <TrendingDown className="w-3 h-3" /> {monthlyRate.label}
+            </span>
+          )}
+          {monthlyRate.status === 'neutral' && (
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <Minus className="w-3 h-3" /> {monthlyRate.label}
+            </span>
+          )}
         </div>
 
         {/* Mini cards de resumo: Salário Fixo Mensal, Saídas, Faturas */}
