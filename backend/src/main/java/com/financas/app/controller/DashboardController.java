@@ -53,7 +53,8 @@ public class DashboardController {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 2. Transações do mês
-        List<Transaction> monthTransactions = transactionRepository.findByUserIdAndDateBetween(userId, startOfMonth, endOfMonth);
+        List<Transaction> monthTransactions = transactionRepository.findByUserIdAndDateBetween(userId, startOfMonth,
+                endOfMonth);
 
         BigDecimal monthIncome = monthTransactions.stream()
                 .filter(t -> t.getType() == TransactionType.INCOME)
@@ -65,10 +66,20 @@ public class DashboardController {
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 3. Faturas abertas
+        // 3. Faturas abertas do mês atual (ou vencidas em aberto até o mês atual)
+        int currentMonth = now.getMonthValue();
+        int currentYear = now.getYear();
+
         BigDecimal openInvoicesTotal = invoiceRepository.findAll().stream()
                 .filter(inv -> inv.getCreditCard().getUser().getId().equals(userId))
                 .filter(inv -> inv.getStatus() == InvoiceStatus.OPEN)
+                .filter(inv -> {
+                    if (inv.getReferenceYear() < currentYear)
+                        return true;
+                    if (inv.getReferenceYear() == currentYear && inv.getReferenceMonth() <= currentMonth)
+                        return true;
+                    return false;
+                })
                 .map(Invoice::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -95,8 +106,7 @@ public class DashboardController {
                     entry.getKey(),
                     categoryColors.getOrDefault(entry.getKey(), "#6B7280"),
                     entry.getValue(),
-                    pct
-            ));
+                    pct));
         }
 
         return ResponseEntity.ok(new DashboardSummaryResponse(
@@ -104,8 +114,7 @@ public class DashboardController {
                 monthIncome,
                 monthExpense,
                 openInvoicesTotal,
-                breakdowns
-        ));
+                breakdowns));
     }
 
     @PostMapping("/reset-all")
@@ -120,7 +129,8 @@ public class DashboardController {
             // 2. Zera as faturas dos cartões
             List<CreditCard> cards = creditCardRepository.findByUserIdAndIsActiveTrue(userId);
             for (CreditCard c : cards) {
-                List<Invoice> invs = invoiceRepository.findByCreditCardIdOrderByReferenceYearDescReferenceMonthDesc(c.getId());
+                List<Invoice> invs = invoiceRepository
+                        .findByCreditCardIdOrderByReferenceYearDescReferenceMonthDesc(c.getId());
                 for (Invoice inv : invs) {
                     inv.setTotalAmount(BigDecimal.ZERO);
                     invoiceRepository.save(inv);
@@ -138,4 +148,3 @@ public class DashboardController {
         return ResponseEntity.ok(Map.of("message", "Todos os dados financeiros foram resetados com sucesso!"));
     }
 }
-

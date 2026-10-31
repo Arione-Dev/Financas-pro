@@ -118,6 +118,11 @@ export const App: React.FC = () => {
     await loadAllData();
   };
 
+  const handleUpdateTransaction = async (transactionId: string, updatedData: any) => {
+    await api.updateTransaction(transactionId, updatedData);
+    await loadAllData();
+  };
+
   const handleDeleteTransaction = async (transactionId: string) => {
     await api.deleteTransaction(transactionId);
     await loadAllData();
@@ -206,8 +211,13 @@ export const App: React.FC = () => {
             {currentTab === 'transactions' && (
               <TransactionsView
                 transactions={transactions}
+                accounts={accounts}
+                cards={cards}
+                categories={categories}
                 isPrivacyMode={isPrivacyMode}
                 onOpenNewTransaction={() => setIsNewTxModalOpen(true)}
+                onUpdateTransaction={handleUpdateTransaction}
+                onDeleteTransaction={handleDeleteTransaction}
               />
             )}
 

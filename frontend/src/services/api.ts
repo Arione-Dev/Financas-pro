@@ -138,8 +138,26 @@ export const api = {
 
   async getSummary(): Promise<DashboardSummary> {
     const monthlySalary = this.getMonthlySalary();
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    const isCurrentMonth = (dateStr?: string) => {
+      if (!dateStr) return true;
+      const [y, m] = dateStr.split('-').map(Number);
+      return y === currentYear && m === currentMonth;
+    };
+
+    const isCurrentOrPastMonth = (dateStr?: string) => {
+      if (!dateStr) return true;
+      const [y, m] = dateStr.split('-').map(Number);
+      if (y < currentYear) return true;
+      if (y === currentYear && m <= currentMonth) return true;
+      return false;
+    };
+
     const otherIncome = localTransactions
-      .filter(t => t.type === 'INCOME')
+      .filter(t => t.type === 'INCOME' && isCurrentMonth(t.date))
       .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
     try {
@@ -156,13 +174,12 @@ export const api = {
       }
     } catch (e) {}
 
-    // Recalcula dinamicamente em tempo real com base apenas nos lançamentos reais do usuário
     const totalBalance = localAccounts.reduce((acc, a) => acc + (Number(a.currentBalance) || 0), 0);
     const monthIncome = monthlySalary + otherIncome;
-    const expenseTransactions = localTransactions.filter(t => t.type === 'EXPENSE');
+    const expenseTransactions = localTransactions.filter(t => t.type === 'EXPENSE' && isCurrentMonth(t.date));
     const monthExpense = expenseTransactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     const openInvoicesTotal = localTransactions
-      .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid)
+      .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid && isCurrentOrPastMonth(t.date))
       .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
     // Agrupa estritamente as despesas reais por categoria (se não houver despesas, a lista fica vazia)
@@ -479,6 +496,58 @@ export const api = {
 
     setStored('financas_transactions', localTransactions);
     return createdList;
+  },
+
+  async updateTransaction(id: string, data: any): Promise<Transaction | null> {
+    try {
+      const res = await fetch(`${API_BASE}/transactions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        await this.getTransactions();
+        return updated;
+      }
+    } catch (e) {}
+
+    const idx = localTransactions.findIndex(t => t.id === id);
+    if (idx !== -1) {
+      const oldT = localTransactions[idx];
+      const updatedT: Transaction = {
+        ...oldT,
+        ...data,
+        category: data.categoryId ? (localCategories.find(c => c.id === data.categoryId) || oldT.category) : oldT.category,
+        account: data.accountId ? (localAccounts.find(a => a.id === data.accountId) || oldT.account) : oldT.account,
+        creditCard: data.creditCardId ? (localCards.find(c => c.id === data.creditCardId) || oldT.creditCard) : oldT.creditCard
+      };
+      localTransactions[idx] = updatedT;
+
+      // Se fizer parte de um grupo de parcelas, sincroniza a data das demais
+      if (updatedT.installmentGroupId && data.date) {
+        const curNum = updatedT.installmentNumber || 1;
+        const baseD = new Date(data.date + 'T12:00:00');
+        baseD.setMonth(baseD.getMonth() - (curNum - 1));
+
+        localTransactions = localTransactions.map(sibling => {
+          if (sibling.installmentGroupId === updatedT.installmentGroupId && sibling.id !== updatedT.id) {
+            const sNum = sibling.installmentNumber || 1;
+            const sD = new Date(baseD);
+            sD.setMonth(sD.getMonth() + (sNum - 1));
+            return {
+              ...sibling,
+              date: sD.toISOString().split('T')[0]
+            };
+          }
+          return sibling;
+        });
+      }
+
+      setStored('financas_transactions', localTransactions);
+      return updatedT;
+    }
+    return null;
   },
 
   async deleteTransaction(id: string): Promise<void> {
