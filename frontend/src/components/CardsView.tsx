@@ -16,6 +16,7 @@ interface CardsViewProps {
   isPrivacyMode: boolean;
   onAddCard: (card: Partial<CreditCard>) => void;
   onDeleteCard: (cardId: string) => void;
+  onUpdateCard?: (cardId: string, cardData: Partial<CreditCard>) => void;
   onPayInvoice: (cardId: string, accountId: string, amount: number) => void;
   onPayInstallment?: (transactionId: string, accountId: string) => void;
   onDeleteTransaction?: (transactionId: string) => void;
@@ -37,10 +38,12 @@ export const CardsView: React.FC<CardsViewProps> = ({
   onDeleteTransaction,
   onPayEntirePurchase,
   onDeleteEntirePurchase,
-  onUpdatePurchase
+  onUpdatePurchase,
+  onUpdateCard
 }) => {
   const [selectedCardId, setSelectedCardId] = useState<string>(cards[0]?.id || '');
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
   const [isPayModalOpen, setIsPayModalOpen] = useState<boolean>(false);
   const [payingInstallmentTx, setPayingInstallmentTx] = useState<Transaction | null>(null);
   const [editingPurchaseGroup, setEditingPurchaseGroup] = useState<any | null>(null);
@@ -387,6 +390,19 @@ export const CardsView: React.FC<CardsViewProps> = ({
                       <ShieldCheck className="w-3 h-3" /> Físico/Virtual
                     </span>
                     <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingCard(c);
+                      }}
+                      title="Editar dados do cartão"
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        isSelected ? 'hover:bg-white/20 text-white/80 hover:text-white' : 'hover:bg-indigo-50 text-slate-400 hover:text-indigo-600'
+                      }`}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(c.id, c.name);
@@ -483,9 +499,19 @@ export const CardsView: React.FC<CardsViewProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-0.5">
-                Fechamento dia {selectedCard.closingDay} • Vencimento dia {selectedCard.dueDay} • Apenas valores deste ciclo
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Fechamento dia {selectedCard.closingDay} • Vencimento dia {selectedCard.dueDay} • Apenas valores deste ciclo
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEditingCard(selectedCard)}
+                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                  title="Alterar datas de fechamento e vencimento deste cartão"
+                >
+                  <Edit2 className="w-3 h-3" /> Editar Cartão
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0">
@@ -850,6 +876,19 @@ export const CardsView: React.FC<CardsViewProps> = ({
         onClose={() => setIsAddModalOpen(false)}
         onSave={onAddCard}
       />
+
+      {/* Modal de Editar Cartão */}
+      {editingCard && (
+        <CardModal
+          isOpen={!!editingCard}
+          onClose={() => setEditingCard(null)}
+          onSave={(cardData) => {
+            if (onUpdateCard) onUpdateCard(editingCard.id, cardData);
+            setEditingCard(null);
+          }}
+          initialCard={editingCard}
+        />
+      )}
 
       {/* Modal de Dar Baixa na Fatura Total do Mês */}
       {selectedCard && (

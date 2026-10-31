@@ -22,6 +22,22 @@ export const CardModal: React.FC<CardModalProps> = ({
   const [closingDay, setClosingDay] = useState<number>(initialCard ? initialCard.closingDay : 25);
   const [dueDay, setDueDay] = useState<number>(initialCard ? initialCard.dueDay : 5);
 
+  React.useEffect(() => {
+    if (initialCard) {
+      setSelectedBankId(initialCard.bank || 'nubank');
+      setName(initialCard.name);
+      setLimitTotal(String(initialCard.limitTotal || 0));
+      setClosingDay(initialCard.closingDay || 25);
+      setDueDay(initialCard.dueDay || 5);
+    } else {
+      setSelectedBankId('nubank');
+      setName('Nubank Ultravioleta');
+      setLimitTotal('5000');
+      setClosingDay(25);
+      setDueDay(5);
+    }
+  }, [isOpen, initialCard]);
+
   if (!isOpen) return null;
 
   const currentPreset = BANK_PRESETS.find(b => b.id === selectedBankId) || BANK_PRESETS[0];

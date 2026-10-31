@@ -393,6 +393,34 @@ export const api = {
     return newCard;
   },
 
+  async updateCard(cardId: string, cardData: Partial<CreditCard>): Promise<CreditCard | null> {
+    try {
+      const res = await fetch(`${API_BASE}/cards/${cardId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cardData)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        const idx = localCards.findIndex(c => c.id === cardId);
+        if (idx !== -1) localCards[idx] = updated;
+        setStored('financas_cards', localCards);
+        return updated;
+      }
+    } catch (e) {}
+
+    const idx = localCards.findIndex(c => c.id === cardId);
+    if (idx !== -1) {
+      localCards[idx] = {
+        ...localCards[idx],
+        ...cardData
+      };
+      setStored('financas_cards', localCards);
+      return localCards[idx];
+    }
+    return null;
+  },
+
   async deleteCard(cardId: string): Promise<void> {
     try {
       await fetch(`${API_BASE}/cards/${cardId}`, { method: 'DELETE' });
