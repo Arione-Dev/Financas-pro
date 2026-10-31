@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '../services/api';
 import { X, CheckCircle2, Calendar, Tag, DollarSign, Wallet, CreditCard as CardIcon } from 'lucide-react';
 import { Transaction, Account, CreditCard, Category, PaymentMethod } from '../types';
 
@@ -221,9 +222,12 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                 onChange={e => setAccountId(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
+                <option value="SALARIO">
+                  💰 Salário do Mês (Saldo: R$ {api.getSalaryRemaining().toFixed(2)})
+                </option>
                 {accounts.map(acc => (
                   <option key={acc.id} value={acc.id}>
-                    {acc.name}
+                    {acc.name} — Saldo: R$ {acc.currentBalance?.toFixed(2)}
                   </option>
                 ))}
               </select>
