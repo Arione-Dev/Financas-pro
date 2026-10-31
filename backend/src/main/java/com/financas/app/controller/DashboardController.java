@@ -61,25 +61,20 @@ public class DashboardController {
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // 2. Saídas reais de caixa do mês (dinheiro, débito, pix ou faturas de cartão pagas)
         BigDecimal monthExpense = monthTransactions.stream()
-                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .filter(t -> t.getType() == TransactionType.EXPENSE && (t.getPaymentMethod() != com.financas.app.domain.enums.PaymentMethod.CREDIT_CARD || Boolean.TRUE.equals(t.getIsPaid())))
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 3. Faturas abertas do mês atual (ou vencidas em aberto até o mês atual)
+        // 3. Faturas abertas do ciclo deste mês
         int currentMonth = now.getMonthValue();
         int currentYear = now.getYear();
 
         BigDecimal openInvoicesTotal = invoiceRepository.findAll().stream()
                 .filter(inv -> inv.getCreditCard().getUser().getId().equals(userId))
                 .filter(inv -> inv.getStatus() == InvoiceStatus.OPEN)
-                .filter(inv -> {
-                    if (inv.getReferenceYear() < currentYear)
-                        return true;
-                    if (inv.getReferenceYear() == currentYear && inv.getReferenceMonth() <= currentMonth)
-                        return true;
-                    return false;
-                })
+                .filter(inv -> inv.getReferenceYear() == currentYear && inv.getReferenceMonth() == currentMonth)
                 .map(Invoice::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
