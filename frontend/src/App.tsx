@@ -133,6 +133,21 @@ export const App: React.FC = () => {
     await loadAllData();
   };
 
+  const handlePayEntirePurchase = async (transactionIds: string[], accountId: string, totalAmount: number) => {
+    await api.payEntirePurchase(transactionIds, accountId, totalAmount);
+    await loadAllData();
+  };
+
+  const handleDeleteEntirePurchase = async (transactionIds: string[]) => {
+    await api.deleteEntirePurchase(transactionIds);
+    await loadAllData();
+  };
+
+  const handleUpdatePurchase = async (transactionIds: string[], data: { description: string; categoryId: string }) => {
+    await api.updatePurchase(transactionIds, data);
+    await loadAllData();
+  };
+
   // Funções de Gestão de Saldo, Contas e Salário Fixo
   const handleSaveAccountBalance = async (accountId: string, newBalance: number) => {
     await api.updateAccountBalance(accountId, newBalance);
@@ -226,12 +241,16 @@ export const App: React.FC = () => {
                 cards={cards}
                 transactions={transactions}
                 accounts={accounts}
+                categories={categories}
                 isPrivacyMode={isPrivacyMode}
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
                 onPayInvoice={handlePayInvoice}
                 onPayInstallment={handlePayInstallment}
                 onDeleteTransaction={handleDeleteTransaction}
+                onPayEntirePurchase={handlePayEntirePurchase}
+                onDeleteEntirePurchase={handleDeleteEntirePurchase}
+                onUpdatePurchase={handleUpdatePurchase}
               />
             )}
           </>

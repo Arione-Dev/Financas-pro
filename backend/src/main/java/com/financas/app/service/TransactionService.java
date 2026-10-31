@@ -127,14 +127,11 @@ public class TransactionService {
         }
 
         // 2. Pagamento à Vista (Pix, Débito, Dinheiro ou Receita em Conta)
+        // Se a conta de origem for "SALARIO", accUuid é null e não debita conta bancária física
         UUID accUuid = parseUuidSafely(req.accountId());
         Account account = null;
         if (accUuid != null) {
             account = accountRepository.findById(accUuid).orElse(null);
-        }
-        if (account == null) {
-            account = accountRepository.findByUserIdAndIsActiveTrue(user.getId()).stream().findFirst()
-                    .orElseGet(() -> accountRepository.findAll().stream().findFirst().orElse(null));
         }
 
         if (account != null && req.amount() != null) {

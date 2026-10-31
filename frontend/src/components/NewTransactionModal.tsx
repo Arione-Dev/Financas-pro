@@ -43,10 +43,21 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
   }, [cards, creditCardId, isOpen]);
 
   useEffect(() => {
+    if (accountId === 'SALARIO') return;
     if (accounts.length > 0 && (!accountId || !accounts.some(a => a.id === accountId))) {
       setAccountId(accounts[0].id);
     }
   }, [accounts, accountId, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (paymentMethod !== 'CREDIT_CARD' && type === 'EXPENSE') {
+        if (!accountId) {
+          setAccountId('SALARIO');
+        }
+      }
+    }
+  }, [isOpen, paymentMethod, type]);
 
   if (!isOpen) return null;
 

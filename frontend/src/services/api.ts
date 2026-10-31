@@ -193,10 +193,16 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         if (data && (Number(data.totalBalance) >= 0 || Number(data.monthExpense) >= 0)) {
+          const cashExpenses = localTransactions
+            .filter(t => t.type === 'EXPENSE' && t.paymentMethod !== 'CREDIT_CARD' && isCurrentMonth(t.date))
+            .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+          const salaryRemaining = Math.max(0, monthlySalary - cashExpenses);
+          const accountsBalance = Number(data.totalBalance) || 0;
           return {
             ...data,
             monthlySalary,
-            monthIncome: monthlySalary + otherIncome
+            monthIncome: monthlySalary + otherIncome,
+            totalBalance: accountsBalance + salaryRemaining
           };
         }
       }
@@ -417,6 +423,81 @@ export const api = {
       setStored('financas_accounts', localAccounts);
     }
     return acc;
+  },
+
+  async payEntirePurchase(transactionIds: string[], accountId: string, totalAmount: number): Promise<void> {
+    for (const id of transactionIds) {
+      try {
+        await fetch(`${API_BASE}/transactions/${id}/pay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId })
+        });
+      } catch (e) {}
+    }
+
+    localTransactions = localTransactions.map(t => {
+      if (transactionIds.includes(t.id)) {
+        return { ...t, isPaid: true };
+      }
+      return t;
+    });
+
+    if (accountId !== 'SALARIO') {
+      const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
+      if (acc) {
+        acc.currentBalance = Math.max(0, acc.currentBalance - totalAmount);
+        setStored('financas_accounts', localAccounts);
+      }
+    }
+    setStored('financas_transactions', localTransactions);
+  },
+
+  async updatePurchase(transactionIds: string[], data: { description?: string; categoryId?: string }): Promise<void> {
+    const targetCat = data.categoryId ? localCategories.find(c => c.id === data.categoryId) : undefined;
+    for (const id of transactionIds) {
+      try {
+        await fetch(`${API_BASE}/transactions/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      } catch (e) {}
+    }
+
+    localTransactions = localTransactions.map(t => {
+      if (transactionIds.includes(t.id)) {
+        let newDesc = t.description;
+        if (data.description) {
+          if (t.totalInstallments && t.totalInstallments > 1 && t.installmentNumber) {
+            newDesc = `${data.description} (${t.installmentNumber}/${t.totalInstallments})`;
+          } else {
+            newDesc = data.description;
+          }
+        }
+        return {
+          ...t,
+          description: newDesc,
+          category: targetCat || t.category
+        };
+      }
+      return t;
+    });
+    setStored('financas_transactions', localTransactions);
+  },
+
+  async updatePurchaseCategory(transactionIds: string[], categoryId: string): Promise<void> {
+    return this.updatePurchase(transactionIds, { categoryId });
+  },
+
+  async deleteEntirePurchase(transactionIds: string[]): Promise<void> {
+    for (const id of transactionIds) {
+      try {
+        await fetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
+      } catch (e) {}
+    }
+    localTransactions = localTransactions.filter(t => !transactionIds.includes(t.id));
+    setStored('financas_transactions', localTransactions);
   },
 
   async payInstallment(transactionId: string, accountId: string): Promise<void> {
