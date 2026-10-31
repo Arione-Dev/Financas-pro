@@ -35,6 +35,54 @@ export const CardsView: React.FC<CardsViewProps> = ({
   const [payingInstallmentTx, setPayingInstallmentTx] = useState<Transaction | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  const calculateDueDate = (
+    baseDateStr: string,
+    closingDay: number = 25,
+    dueDay: number = 5,
+    instNum: number = 1
+  ): string => {
+    if (!baseDateStr) return '';
+    const [y, m, d] = baseDateStr.split('-').map(Number);
+    if (!y || !m || !d) return baseDateStr;
+
+    // 1. Mês/Ano de fechamento da 1ª parcela
+    let closingMonth = m;
+    let closingYear = y;
+
+    if (d >= closingDay) {
+      closingMonth += 1;
+      if (closingMonth > 12) {
+        closingMonth = 1;
+        closingYear += 1;
+      }
+    }
+
+    // 2. Avança para a parcela i (1-based)
+    const offset = Math.max(0, instNum - 1);
+    closingMonth += offset;
+    while (closingMonth > 12) {
+      closingMonth -= 12;
+      closingYear += 1;
+    }
+
+    // 3. Vencimento da fatura
+    let dueMonth = closingMonth;
+    let dueYear = closingYear;
+    if (dueDay < closingDay) {
+      dueMonth += 1;
+      if (dueMonth > 12) {
+        dueMonth = 1;
+        dueYear += 1;
+      }
+    }
+
+    const maxDays = new Date(dueYear, dueMonth, 0).getDate();
+    const actualDueDay = Math.min(dueDay, maxDays);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(actualDueDay)}/${pad(dueMonth)}/${dueYear}`;
+  };
+
   const formatCurrency = (val: number) => {
     if (isPrivacyMode) return '••••••';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -558,8 +606,19 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                           </span>
                                         )}
                                       </div>
-                                      <p className="text-[11px] text-slate-500">
-                                        Data / Vencimento: {t.date}
+                                      <p className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5 mt-0.5">
+                                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                                          Vencimento: {calculateDueDate(
+                                            group.items[0]?.date || t.date,
+                                            selectedCard.closingDay || 25,
+                                            selectedCard.dueDay || 5,
+                                            instNumber
+                                          )}
+                                        </span>
+                                        <span className="text-slate-400">•</span>
+                                        <span className="text-slate-400">
+                                          Compra: {t.date}
+                                        </span>
                                       </p>
                                     </div>
                                   </div>

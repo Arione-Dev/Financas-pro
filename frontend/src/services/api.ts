@@ -32,12 +32,20 @@ let localAccounts: Account[] = getStored<Account[]>('financas_accounts', initial
 let localCards: CreditCard[] = getStored<CreditCard[]>('financas_cards', initialCards);
 
 let localCategories: Category[] = [
-  { id: 'cat1', name: 'Alimentação', icon: 'utensils', color: '#F59E0B', type: 'EXPENSE' },
-  { id: 'cat2', name: 'Supermercado', icon: 'shopping-cart', color: '#10B981', type: 'EXPENSE' },
-  { id: 'cat3', name: 'Transporte', icon: 'car', color: '#3B82F6', type: 'EXPENSE' },
-  { id: 'cat4', name: 'Moradia', icon: 'home', color: '#8B5CF6', type: 'EXPENSE' },
-  { id: 'cat5', name: 'Lazer', icon: 'gamepad-2', color: '#06B6D4', type: 'EXPENSE' },
-  { id: 'cat6', name: 'Salário', icon: 'wallet', color: '#10B981', type: 'INCOME' }
+  { id: 'cat-alimentacao', name: 'Alimentação', icon: 'utensils', color: '#F59E0B', type: 'EXPENSE' },
+  { id: 'cat-supermercado', name: 'Supermercado', icon: 'shopping-cart', color: '#10B981', type: 'EXPENSE' },
+  { id: 'cat-educacao', name: 'Educação', icon: 'book-open', color: '#6366F1', type: 'EXPENSE' },
+  { id: 'cat-transporte', name: 'Transporte', icon: 'car', color: '#3B82F6', type: 'EXPENSE' },
+  { id: 'cat-moradia', name: 'Moradia', icon: 'home', color: '#8B5CF6', type: 'EXPENSE' },
+  { id: 'cat-contas', name: 'Contas & Boletos', icon: 'file-text', color: '#F97316', type: 'EXPENSE' },
+  { id: 'cat-servicos', name: 'Serviços & Assinaturas', icon: 'tv', color: '#A855F7', type: 'EXPENSE' },
+  { id: 'cat-saude', name: 'Saúde & Farmácia', icon: 'heart-pulse', color: '#EC4899', type: 'EXPENSE' },
+  { id: 'cat-compras', name: 'Compras & Vestuário', icon: 'shopping-bag', color: '#E11D48', type: 'EXPENSE' },
+  { id: 'cat-lazer', name: 'Lazer', icon: 'gamepad-2', color: '#06B6D4', type: 'EXPENSE' },
+  { id: 'cat-pets', name: 'Pets', icon: 'paw-print', color: '#14B8A6', type: 'EXPENSE' },
+  { id: 'cat-outros', name: 'Outros', icon: 'more-horizontal', color: '#64748B', type: 'EXPENSE' },
+  { id: 'cat-salario', name: 'Salário', icon: 'wallet', color: '#10B981', type: 'INCOME' },
+  { id: 'cat-investimentos', name: 'Investimentos', icon: 'trending-up', color: '#4F46E5', type: 'INCOME' }
 ];
 
 let localTransactions: Transaction[] = getStored<Transaction[]>('financas_transactions', []);
