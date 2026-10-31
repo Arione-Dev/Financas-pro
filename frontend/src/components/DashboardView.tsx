@@ -17,6 +17,7 @@ interface DashboardViewProps {
   onOpenEditAccount?: (account?: Account, initialMode?: 'SALARY' | 'BALANCE' | 'NEW_ACCOUNT') => void;
   onDeleteAccount?: (accountId: string) => void;
   onSelectTab?: (tab: 'dashboard' | 'transactions' | 'cards') => void;
+  onSelectCard?: (cardId: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -31,7 +32,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onResetAllData,
   onOpenEditAccount,
   onDeleteAccount,
-  onSelectTab
+  onSelectTab,
+  onSelectCard
 }) => {
 
   // Cálculo inteligente e real da taxa mensal
@@ -357,7 +359,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               return (
                 <div
                   key={card.id}
-                  onClick={() => onSelectTab && onSelectTab('cards')}
+                  onClick={() => {
+                    if (onSelectCard) onSelectCard(card.id);
+                    if (onSelectTab) onSelectTab('cards');
+                  }}
                   className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 cursor-pointer space-y-3 transition-all"
                 >
                   <div className="flex items-center justify-between">

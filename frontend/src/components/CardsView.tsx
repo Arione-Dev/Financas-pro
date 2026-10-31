@@ -14,6 +14,8 @@ interface CardsViewProps {
   accounts: Account[];
   categories?: Category[];
   isPrivacyMode: boolean;
+  selectedCardId?: string;
+  onSelectCard?: (cardId: string) => void;
   onAddCard: (card: Partial<CreditCard>) => void;
   onDeleteCard: (cardId: string) => void;
   onUpdateCard?: (cardId: string, cardData: Partial<CreditCard>) => void;
@@ -31,6 +33,8 @@ export const CardsView: React.FC<CardsViewProps> = ({
   accounts,
   categories = [],
   isPrivacyMode,
+  selectedCardId: propSelectedCardId,
+  onSelectCard,
   onAddCard,
   onDeleteCard,
   onPayInvoice,
@@ -41,7 +45,18 @@ export const CardsView: React.FC<CardsViewProps> = ({
   onUpdatePurchase,
   onUpdateCard
 }) => {
-  const [selectedCardId, setSelectedCardId] = useState<string>(cards[0]?.id || '');
+  const [internalSelectedCardId, setInternalSelectedCardId] = useState<string>(propSelectedCardId || cards[0]?.id || '');
+  const selectedCardId = propSelectedCardId || internalSelectedCardId;
+  const setSelectedCardId = (id: string) => {
+    setInternalSelectedCardId(id);
+    if (onSelectCard) onSelectCard(id);
+  };
+
+  React.useEffect(() => {
+    if (propSelectedCardId) {
+      setInternalSelectedCardId(propSelectedCardId);
+    }
+  }, [propSelectedCardId]);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
   const [isPayModalOpen, setIsPayModalOpen] = useState<boolean>(false);
