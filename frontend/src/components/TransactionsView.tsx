@@ -117,11 +117,11 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       </div>
 
       {/* Lista de Transações com Opções de Editar e Excluir */}
-      <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xl divide-y divide-slate-100 dark:divide-slate-800/80 transition-colors">
+      <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 sm:p-5 shadow-xl divide-y divide-slate-100 dark:divide-slate-800/80 transition-colors">
         {filtered.length > 0 ? (
           filtered.map(t => (
-            <div key={t.id} className="py-3.5 flex items-center justify-between gap-3 group">
-              <div className="flex items-center gap-3 min-w-0">
+            <div key={t.id} className="py-3 sm:py-3.5 flex items-center justify-between gap-2.5 sm:gap-3 group">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                   t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                 }`}>
@@ -158,7 +158,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               </div>
 
               {/* Lado Direito: Valor e Botões de Ação (Editar e Apagar) */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 <div className="text-right">
                   <span className={`font-extrabold text-xs sm:text-sm block ${
                     t.type === 'INCOME' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'
@@ -179,7 +179,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   type="button"
                   onClick={() => setEditingTransaction(t)}
                   title="Editar este lançamento"
-                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl transition-colors ml-1"
+                  className="p-1.5 sm:p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl transition-colors"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
@@ -189,7 +189,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   type="button"
                   onClick={() => handleDelete(t)}
                   title="Apagar este lançamento dos registros"
-                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors"
+                  className="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

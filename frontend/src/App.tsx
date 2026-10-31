@@ -197,7 +197,7 @@ export const App: React.FC = () => {
       />
 
       {/* Área Principal de Conteúdo */}
-      <main className="flex-1 lg:pl-64 max-w-7xl w-full mx-auto px-4 sm:px-8 pt-6">
+      <main className="flex-1 lg:pl-64 max-w-7xl w-full mx-auto px-3.5 sm:px-8 pt-4 sm:pt-6">
         {loading ? (
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" />
