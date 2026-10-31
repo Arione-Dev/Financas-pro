@@ -65,10 +65,18 @@ public class DashboardController {
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 3. Faturas abertas
+        // 3. Faturas abertas do mês atual (ou vencidas em aberto até o mês atual)
+        int currentMonth = now.getMonthValue();
+        int currentYear = now.getYear();
+
         BigDecimal openInvoicesTotal = invoiceRepository.findAll().stream()
                 .filter(inv -> inv.getCreditCard().getUser().getId().equals(userId))
                 .filter(inv -> inv.getStatus() == InvoiceStatus.OPEN)
+                .filter(inv -> {
+                    if (inv.getReferenceYear() < currentYear) return true;
+                    if (inv.getReferenceYear() == currentYear && inv.getReferenceMonth() <= currentMonth) return true;
+                    return false;
+                })
                 .map(Invoice::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 

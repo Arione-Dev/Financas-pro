@@ -35,6 +35,10 @@ export const CardsView: React.FC<CardsViewProps> = ({
   const [payingInstallmentTx, setPayingInstallmentTx] = useState<Transaction | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-12
+
   const formatCurrency = (val: number) => {
     if (isPrivacyMode) return '••••••';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -55,8 +59,18 @@ export const CardsView: React.FC<CardsViewProps> = ({
     return tCardId && sCardId && tCardId === sCardId;
   });
 
-  // Cálculo da fatura atual do cartão selecionado (apenas parcelas e compras em aberto/pendentes)
-  const currentInvoiceTotal = cardTransactions.filter(t => !t.isPaid).reduce((acc, t) => acc + (t.amount || 0), 0);
+  // Lançamentos do cartão selecionado pertencentes à fatura deste mês (ou anteriores pendentes)
+  const currentInvoiceTransactions = cardTransactions.filter(t => {
+    if (t.isPaid) return false;
+    if (!t.date) return true;
+    const [y, m] = t.date.split('-').map(Number);
+    if (y < currentYear) return true;
+    if (y === currentYear && m <= currentMonth) return true;
+    return false; // Parcelas de meses futuros não entram na fatura atual
+  });
+
+  // Total a Pagar da Fatura Atual (Apenas o que vence neste mês + anteriores pendentes)
+  const currentInvoiceTotal = currentInvoiceTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
 
   // Agrupamento Inteligente de Compras e Parcelas
   const groupedPurchases = React.useMemo(() => {
@@ -87,6 +101,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
       unpaidAmount: number;
       paidCount: number;
       unpaidCount: number;
+      thisMonthItem?: Transaction;
       items: Transaction[];
       hasMultipleInstallments: boolean;
     }[] = [];
@@ -111,6 +126,13 @@ export const CardsView: React.FC<CardsViewProps> = ({
       const paidAmount = paidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
       const unpaidAmount = unpaidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
 
+      // Localiza a parcela correspondente a este mês (ou a próxima pendente)
+      const thisMonthItem = items.find(t => {
+        if (!t.date) return false;
+        const [y, m] = t.date.split('-').map(Number);
+        return y === currentYear && m === currentMonth;
+      }) || items.find(t => !t.isPaid);
+
       list.push({
         key,
         title,
@@ -122,13 +144,14 @@ export const CardsView: React.FC<CardsViewProps> = ({
         unpaidAmount,
         paidCount: paidItems.length,
         unpaidCount: unpaidItems.length,
+        thisMonthItem,
         items,
         hasMultipleInstallments: totalInstallments > 1 || items.length > 1
       });
     });
 
     return list;
-  }, [cardTransactions]);
+  }, [cardTransactions, currentYear, currentMonth]);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => ({
@@ -191,9 +214,21 @@ export const CardsView: React.FC<CardsViewProps> = ({
               const tCardId = String(t.creditCard?.id || (t as any).creditCardId || '').toLowerCase();
               return tCardId && tCardId === String(c.id).toLowerCase();
             });
-            const cardUsed = cardUnpaidTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
-            const cardAvailable = Math.max(0, (c.limitTotal || 0) - cardUsed);
-            const percentUsed = c.limitTotal > 0 ? Math.min(100, (cardUsed / c.limitTotal) * 100) : 0;
+
+            // Total de parcelas e compras do mês atual para este cartão
+            const cardMonthUnpaidTxs = cardUnpaidTxs.filter(t => {
+              if (!t.date) return true;
+              const [y, m] = t.date.split('-').map(Number);
+              if (y < currentYear) return true;
+              if (y === currentYear && m <= currentMonth) return true;
+              return false;
+            });
+            const cardMonthInvoice = cardMonthUnpaidTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
+
+            // O limite comprometido considera todas as parcelas não pagas (presentes e futuras)
+            const cardUsedTotal = cardUnpaidTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
+            const cardAvailable = Math.max(0, (c.limitTotal || 0) - cardUsedTotal);
+            const percentUsed = c.limitTotal > 0 ? Math.min(100, (cardUsedTotal / c.limitTotal) * 100) : 0;
 
             return (
               <div
@@ -257,11 +292,19 @@ export const CardsView: React.FC<CardsViewProps> = ({
                       •••• •••• •••• 2026
                     </span>
                   </div>
-                  {cardUsed > 0 && (
+                  
+                  {/* Fatura do Mês (Apenas o ciclo atual) */}
+                  {cardMonthInvoice > 0 ? (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       isSelected ? 'bg-rose-500/80 text-white' : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
                     }`}>
-                      Fatura: {formatCurrency(cardUsed)}
+                      Fatura do Mês: {formatCurrency(cardMonthInvoice)}
+                    </span>
+                  ) : (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      isSelected ? 'bg-emerald-500/80 text-white' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    }`}>
+                      Fatura em Dia
                     </span>
                   )}
                 </div>
@@ -320,13 +363,13 @@ export const CardsView: React.FC<CardsViewProps> = ({
                 )}
               </div>
               <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-0.5">
-                Fechamento dia {selectedCard.closingDay} • Vencimento dia {selectedCard.dueDay}
+                Fechamento dia {selectedCard.closingDay} • Vencimento dia {selectedCard.dueDay} • Apenas valores deste ciclo
               </p>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <span className="text-[11px] text-slate-500 block">Total a pagar</span>
+                <span className="text-[11px] text-slate-500 block">Total a pagar deste mês</span>
                 <span className={`text-xl font-extrabold ${currentInvoiceTotal > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
                   {formatCurrency(currentInvoiceTotal)}
                 </span>
@@ -401,7 +444,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                               )}
                             </div>
 
-                            <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                            <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                               <span>Total da compra: <strong className="text-slate-700 dark:text-slate-300">{formatCurrency(group.totalAmount)}</strong></span>
                               {group.categoryName && (
                                 <>
@@ -413,20 +456,40 @@ export const CardsView: React.FC<CardsViewProps> = ({
                           </div>
                         </div>
 
-                        {/* Lado Direito do Resumo da Compra */}
+                        {/* Lado Direito do Resumo da Compra: Mostra a parcela que cabe nesta fatura */}
                         <div className="flex items-center gap-3">
                           <div className="text-right">
-                            <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
-                              {formatCurrency(group.totalAmount)}
-                            </span>
-                            {allPaid ? (
-                              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                <Check className="w-2.5 h-2.5 stroke-[3]" /> Liquidada
-                              </span>
+                            {group.hasMultipleInstallments ? (
+                              <>
+                                <span className="text-[11px] text-slate-500 block">Nesta fatura:</span>
+                                <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
+                                  {group.thisMonthItem ? formatCurrency(group.thisMonthItem.amount) : formatCurrency(group.installmentAmount)}
+                                </span>
+                                {group.thisMonthItem?.isPaid ? (
+                                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Parcela Paga
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    {group.thisMonthItem ? `Parcela ${group.thisMonthItem.installmentNumber}/${group.totalInstallments}` : 'Aberta'}
+                                  </span>
+                                )}
+                              </>
                             ) : (
-                              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                {group.unpaidCount} {group.unpaidCount === 1 ? 'pendente' : 'pendentes'}
-                              </span>
+                              <>
+                                <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
+                                  {formatCurrency(group.totalAmount)}
+                                </span>
+                                {allPaid ? (
+                                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Liquidada
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    Pendente
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
 
@@ -457,23 +520,51 @@ export const CardsView: React.FC<CardsViewProps> = ({
                               const instNumber = t.installmentNumber || 1;
                               const totalInst = t.totalInstallments || group.totalInstallments;
 
+                              // Verifica se esta parcela é da fatura deste mês ou se é fatura futura
+                              let isThisMonth = false;
+                              let isFutureMonth = false;
+                              if (t.date) {
+                                const [y, m] = t.date.split('-').map(Number);
+                                if (y === currentYear && m === currentMonth) {
+                                  isThisMonth = true;
+                                } else if (y > currentYear || (y === currentYear && m > currentMonth)) {
+                                  isFutureMonth = true;
+                                }
+                              }
+
                               return (
                                 <div
                                   key={t.id}
-                                  className="py-2.5 px-2 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-900/60 rounded-xl transition-colors"
+                                  className={`py-2.5 px-2 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-900/60 rounded-xl transition-colors ${
+                                    isThisMonth ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''
+                                  }`}
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center ${
                                       t.isPaid
                                         ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                        : isThisMonth
+                                        ? 'bg-indigo-600 text-white'
                                         : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                     }`}>
                                       {instNumber}
                                     </div>
                                     <div>
-                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                        Parcela {instNumber}/{totalInst}
-                                      </p>
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                          Parcela {instNumber}/{totalInst}
+                                        </p>
+                                        {isThisMonth && (
+                                          <span className="text-[9px] font-extrabold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950 px-1.5 py-0.2 rounded">
+                                            Fatura Deste Mês
+                                          </span>
+                                        )}
+                                        {isFutureMonth && (
+                                          <span className="text-[9px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">
+                                            Fatura Futura
+                                          </span>
+                                        )}
+                                      </div>
                                       <p className="text-[11px] text-slate-500">
                                         Vencimento: {t.date}
                                       </p>
@@ -490,7 +581,11 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                           <Check className="w-2.5 h-2.5 stroke-[3]" /> Fatura Paga
                                         </span>
                                       ) : (
-                                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                          isThisMonth
+                                            ? 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10'
+                                            : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10'
+                                        }`}>
                                           Pendente
                                         </span>
                                       )}
@@ -547,7 +642,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
         onSave={onAddCard}
       />
 
-      {/* Modal de Dar Baixa na Fatura Total */}
+      {/* Modal de Dar Baixa na Fatura Total do Mês */}
       {selectedCard && (
         <PayInvoiceModal
           isOpen={isPayModalOpen}
