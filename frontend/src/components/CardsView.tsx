@@ -114,19 +114,13 @@ export const CardsView: React.FC<CardsViewProps> = ({
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 
-    // Determina o ciclo ATUAL do cartão para este momento (hoje)
-    let currentClosingMonth = now.getMonth() + 1;
-    let currentClosingYear = now.getFullYear();
-    if (now.getDate() >= closingDay) {
-      currentClosingMonth += 1;
-      if (currentClosingMonth > 12) {
-        currentClosingMonth = 1;
-        currentClosingYear += 1;
-      }
-    }
-    let currentDueMonth = currentClosingMonth;
-    let currentDueYear = currentClosingYear;
-    if (dueDay < closingDay) {
+    // Determina o ciclo ATUAL da fatura a ser paga pelo vencimento:
+    // Se hoje já passou do dia de vencimento (dueDay), a fatura ativa a pagar é a do próximo ciclo.
+    // Caso contrário, a fatura ativa a pagar é a que vence neste mês!
+    let currentDueMonth = now.getMonth() + 1;
+    let currentDueYear = now.getFullYear();
+
+    if (now.getDate() > dueDay) {
       currentDueMonth += 1;
       if (currentDueMonth > 12) {
         currentDueMonth = 1;
