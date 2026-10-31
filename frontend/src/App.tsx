@@ -113,6 +113,11 @@ export const App: React.FC = () => {
     await loadAllData();
   };
 
+  const handleUpdateCard = async (cardId: string, cardData: Partial<CreditCard>) => {
+    await api.updateCard(cardId, cardData);
+    await loadAllData();
+  };
+
   const handlePayInstallment = async (transactionId: string, accountId: string) => {
     await api.payInstallment(transactionId, accountId);
     await loadAllData();
@@ -245,6 +250,7 @@ export const App: React.FC = () => {
                 isPrivacyMode={isPrivacyMode}
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
+                onUpdateCard={handleUpdateCard}
                 onPayInvoice={handlePayInvoice}
                 onPayInstallment={handlePayInstallment}
                 onDeleteTransaction={handleDeleteTransaction}

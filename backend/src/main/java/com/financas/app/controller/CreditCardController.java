@@ -51,6 +51,19 @@ public class CreditCardController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<CreditCard> updateCard(@PathVariable UUID id, @RequestBody CreditCard cardDetails) {
+        return creditCardRepository.findById(id).map(card -> {
+            if (cardDetails.getName() != null) card.setName(cardDetails.getName());
+            if (cardDetails.getBank() != null) card.setBank(cardDetails.getBank());
+            if (cardDetails.getLimitTotal() != null) card.setLimitTotal(cardDetails.getLimitTotal());
+            if (cardDetails.getClosingDay() != null) card.setClosingDay(cardDetails.getClosingDay());
+            if (cardDetails.getDueDay() != null) card.setDueDay(cardDetails.getDueDay());
+            if (cardDetails.getColor() != null) card.setColor(cardDetails.getColor());
+            return ResponseEntity.ok(creditCardRepository.save(card));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/{id}/invoices")
     public ResponseEntity<List<Invoice>> listInvoices(@PathVariable UUID id) {
         return ResponseEntity.ok(invoiceRepository.findByCreditCardIdOrderByReferenceYearDescReferenceMonthDesc(id));
