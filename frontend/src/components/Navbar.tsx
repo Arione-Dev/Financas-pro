@@ -79,13 +79,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
 
+          {/* Botão de Novo Lançamento Rápido */}
           <button
             onClick={onOpenNewTransaction}
-            className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 transition-colors shrink-0"
-            title="Novo Lançamento"
+            className="flex items-center gap-1 sm:gap-1.5 py-1.5 px-2 sm:px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/25 transition-transform active:scale-95 shrink-0"
+            title="Novo Lançamento Manual"
           >
-            <PlusCircle className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Lançar</span>
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Lançar</span>
           </button>
         </div>
       </header>
