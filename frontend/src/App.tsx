@@ -14,6 +14,7 @@ import { DashboardSummary, Transaction, Account, CreditCard, Category, User } fr
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => api.getCurrentUser());
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'transactions' | 'cards'>('dashboard');
+  const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(() => {
     return localStorage.getItem('privacy_mode') === 'true';
   });
@@ -225,6 +226,7 @@ export const App: React.FC = () => {
                 }}
                 onDeleteAccount={handleDeleteAccount}
                 onSelectTab={setCurrentTab}
+                onSelectCard={setSelectedCardId}
               />
             )}
 
@@ -248,6 +250,8 @@ export const App: React.FC = () => {
                 accounts={accounts}
                 categories={categories}
                 isPrivacyMode={isPrivacyMode}
+                selectedCardId={selectedCardId}
+                onSelectCard={setSelectedCardId}
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
                 onUpdateCard={handleUpdateCard}

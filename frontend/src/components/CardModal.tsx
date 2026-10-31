@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, CreditCard as CardIcon, ShieldCheck, Sparkles } from 'lucide-react';
 import { CreditCard } from '../types';
-import { BANK_PRESETS, BankPreset } from '../constants/banks';
+import { BANK_PRESETS, BankPreset, getBankPreset } from '../constants/banks';
 
 interface CardModalProps {
   isOpen: boolean;
@@ -24,7 +24,8 @@ export const CardModal: React.FC<CardModalProps> = ({
 
   React.useEffect(() => {
     if (initialCard) {
-      setSelectedBankId(initialCard.bank || 'nubank');
+      const preset = getBankPreset(initialCard.bank || initialCard.name);
+      setSelectedBankId(preset.id);
       setName(initialCard.name);
       setLimitTotal(String(initialCard.limitTotal || 0));
       setClosingDay(initialCard.closingDay || 25);
@@ -40,7 +41,7 @@ export const CardModal: React.FC<CardModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentPreset = BANK_PRESETS.find(b => b.id === selectedBankId) || BANK_PRESETS[0];
+  const currentPreset = BANK_PRESETS.find(b => b.id === selectedBankId) || getBankPreset(selectedBankId);
 
   const handleSelectBank = (preset: BankPreset) => {
     setSelectedBankId(preset.id);
@@ -206,7 +207,7 @@ export const CardModal: React.FC<CardModalProps> = ({
             className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold text-xs rounded-2xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           >
             <Check className="w-4 h-4" />
-            <span>Salvar Cartão</span>
+            <span>{initialCard ? "Salvar Alterações" : "Salvar Cartão"}</span>
           </button>
         </form>
 
