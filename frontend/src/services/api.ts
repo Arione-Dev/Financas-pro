@@ -185,18 +185,33 @@ export const api = {
     };
   },
 
+    deduplicateTransactions(list: Transaction[]): Transaction[] {
+    const seen = new Set<string>();
+    return list.filter(t => {
+      const cardKey = String(t.creditCard?.id || (t as any).creditCardId || 'no-card').toLowerCase();
+      const key = `${cardKey}|${t.amount}|${t.description}|${t.installmentNumber || 1}|${t.date}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  },
+
   async getTransactions(): Promise<Transaction[]> {
     try {
       const res = await fetch(`${API_BASE}/transactions`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          localTransactions = data;
+          localTransactions = this.deduplicateTransactions(data);
           setStored('financas_transactions', localTransactions);
-          return data;
+          return localTransactions;
         }
       }
     } catch (e) {}
+    localTransactions = this.deduplicateTransactions(localTransactions);
+    setStored('financas_transactions', localTransactions);
     return localTransactions;
   },
 
@@ -431,6 +446,14 @@ export const api = {
 
     setStored('financas_transactions', localTransactions);
     return createdList;
+  },
+
+  async deleteTransaction(id: string): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
+    } catch (e) {}
+    localTransactions = localTransactions.filter(t => t.id !== id);
+    setStored('financas_transactions', localTransactions);
   },
 
   async getQuotaStatus(): Promise<QuotaStatus> {
