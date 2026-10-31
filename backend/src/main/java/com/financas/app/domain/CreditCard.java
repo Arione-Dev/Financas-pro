@@ -30,6 +30,9 @@ public class CreditCard {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(length = 50)
+    private String bank;
+
     @Column(name = "limit_total", nullable = false, precision = 12, scale = 2)
     private BigDecimal limitTotal;
 
