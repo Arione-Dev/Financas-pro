@@ -147,3 +147,4 @@ export const PayInstallmentModal: React.FC<PayInstallmentModalProps> = ({
     </div>
   );
 };
+

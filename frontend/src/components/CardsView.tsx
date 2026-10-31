@@ -35,10 +35,6 @@ export const CardsView: React.FC<CardsViewProps> = ({
   const [payingInstallmentTx, setPayingInstallmentTx] = useState<Transaction | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1; // 1-12
-
   const formatCurrency = (val: number) => {
     if (isPrivacyMode) return '••••••';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -58,19 +54,6 @@ export const CardsView: React.FC<CardsViewProps> = ({
     const sCardId = String(selectedCard.id || '').toLowerCase();
     return tCardId && sCardId && tCardId === sCardId;
   });
-
-  // Lançamentos do cartão selecionado pertencentes à fatura deste mês (ou anteriores pendentes)
-  const currentInvoiceTransactions = cardTransactions.filter(t => {
-    if (t.isPaid) return false;
-    if (!t.date) return true;
-    const [y, m] = t.date.split('-').map(Number);
-    if (y < currentYear) return true;
-    if (y === currentYear && m <= currentMonth) return true;
-    return false; // Parcelas de meses futuros não entram na fatura atual
-  });
-
-  // Total a Pagar da Fatura Atual (Apenas o que vence neste mês + anteriores pendentes)
-  const currentInvoiceTotal = currentInvoiceTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
 
   // Agrupamento Inteligente de Compras e Parcelas
   const groupedPurchases = React.useMemo(() => {
@@ -101,7 +84,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
       unpaidAmount: number;
       paidCount: number;
       unpaidCount: number;
-      thisMonthItem?: Transaction;
+      activeInstallment?: Transaction;
       items: Transaction[];
       hasMultipleInstallments: boolean;
     }[] = [];
@@ -126,12 +109,8 @@ export const CardsView: React.FC<CardsViewProps> = ({
       const paidAmount = paidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
       const unpaidAmount = unpaidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
 
-      // Localiza a parcela correspondente a este mês (ou a próxima pendente)
-      const thisMonthItem = items.find(t => {
-        if (!t.date) return false;
-        const [y, m] = t.date.split('-').map(Number);
-        return y === currentYear && m === currentMonth;
-      }) || items.find(t => !t.isPaid);
+      // A parcela ativa da fatura atual é ESTRITAMENTE a primeira parcela ainda não paga!
+      const activeInstallment = items.find(t => !t.isPaid) || items[0];
 
       list.push({
         key,
@@ -144,14 +123,37 @@ export const CardsView: React.FC<CardsViewProps> = ({
         unpaidAmount,
         paidCount: paidItems.length,
         unpaidCount: unpaidItems.length,
-        thisMonthItem,
+        activeInstallment,
         items,
         hasMultipleInstallments: totalInstallments > 1 || items.length > 1
       });
     });
 
     return list;
-  }, [cardTransactions, currentYear, currentMonth]);
+  }, [cardTransactions]);
+
+  // Total da Fatura Atual:
+  // Cada compra parcelada contribui com APENAS UMA parcela por ciclo (a primeira não paga)!
+  // Compras à vista entram integralmente se não pagas.
+  const currentInvoiceTransactions: Transaction[] = React.useMemo(() => {
+    const activeList: Transaction[] = [];
+
+    groupedPurchases.forEach(group => {
+      if (!group.hasMultipleInstallments) {
+        group.items.forEach(t => {
+          if (!t.isPaid) activeList.push(t);
+        });
+      } else {
+        if (group.activeInstallment && !group.activeInstallment.isPaid) {
+          activeList.push(group.activeInstallment);
+        }
+      }
+    });
+
+    return activeList;
+  }, [groupedPurchases]);
+
+  const currentInvoiceTotal = currentInvoiceTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => ({
@@ -175,8 +177,8 @@ export const CardsView: React.FC<CardsViewProps> = ({
       {/* Header com Botão de Novo Cartão */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Cartões & Faturas Futuras</h2>
-          <p className="text-xs text-slate-600 dark:text-slate-400">Controle de limites, datas de corte e parcelamentos futuros</p>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Cartões & Faturas</h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Controle de limites, datas de corte e parcelas do ciclo</p>
         </div>
         <button
           onClick={() => setIsAddModalOpen(true)}
@@ -215,20 +217,14 @@ export const CardsView: React.FC<CardsViewProps> = ({
               return tCardId && tCardId === String(c.id).toLowerCase();
             });
 
-            // Total de parcelas e compras do mês atual para este cartão
-            const cardMonthUnpaidTxs = cardUnpaidTxs.filter(t => {
-              if (!t.date) return true;
-              const [y, m] = t.date.split('-').map(Number);
-              if (y < currentYear) return true;
-              if (y === currentYear && m <= currentMonth) return true;
-              return false;
-            });
-            const cardMonthInvoice = cardMonthUnpaidTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
-
-            // O limite comprometido considera todas as parcelas não pagas (presentes e futuras)
+            // Limite comprometido considera todas as parcelas não pagas (presentes e futuras)
             const cardUsedTotal = cardUnpaidTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
             const cardAvailable = Math.max(0, (c.limitTotal || 0) - cardUsedTotal);
             const percentUsed = c.limitTotal > 0 ? Math.min(100, (cardUsedTotal / c.limitTotal) * 100) : 0;
+
+            // Fatura deste mês deste cartão
+            const isThisCardSelected = c.id === selectedCard?.id;
+            const cardMonthInvoice = isThisCardSelected ? currentInvoiceTotal : 0;
 
             return (
               <div
@@ -293,12 +289,12 @@ export const CardsView: React.FC<CardsViewProps> = ({
                     </span>
                   </div>
                   
-                  {/* Fatura do Mês (Apenas o ciclo atual) */}
+                  {/* Fatura Aberta Atual do Ciclo */}
                   {cardMonthInvoice > 0 ? (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       isSelected ? 'bg-rose-500/80 text-white' : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
                     }`}>
-                      Fatura do Mês: {formatCurrency(cardMonthInvoice)}
+                      Fatura Atual: {formatCurrency(cardMonthInvoice)}
                     </span>
                   ) : (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -407,6 +403,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                 {groupedPurchases.map(group => {
                   const isExpanded = !!expandedGroups[group.key];
                   const allPaid = group.unpaidCount === 0;
+                  const activeInst = group.activeInstallment;
 
                   return (
                     <div
@@ -456,22 +453,26 @@ export const CardsView: React.FC<CardsViewProps> = ({
                           </div>
                         </div>
 
-                        {/* Lado Direito do Resumo da Compra: Mostra a parcela que cabe nesta fatura */}
+                        {/* Lado Direito do Resumo da Compra: Exibe a parcela do ciclo atual */}
                         <div className="flex items-center gap-3">
                           <div className="text-right">
                             {group.hasMultipleInstallments ? (
                               <>
                                 <span className="text-[11px] text-slate-500 block">Nesta fatura:</span>
                                 <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
-                                  {group.thisMonthItem ? formatCurrency(group.thisMonthItem.amount) : formatCurrency(group.installmentAmount)}
+                                  {formatCurrency(group.installmentAmount)}
                                 </span>
-                                {group.thisMonthItem?.isPaid ? (
+                                {allPaid ? (
                                   <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Parcela Paga
+                                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Todas Pagas
+                                  </span>
+                                ) : activeInst ? (
+                                  <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    Parcela {activeInst.installmentNumber}/{group.totalInstallments}
                                   </span>
                                 ) : (
                                   <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                    {group.thisMonthItem ? `Parcela ${group.thisMonthItem.installmentNumber}/${group.totalInstallments}` : 'Aberta'}
+                                    Pendente
                                   </span>
                                 )}
                               </>
@@ -520,30 +521,22 @@ export const CardsView: React.FC<CardsViewProps> = ({
                               const instNumber = t.installmentNumber || 1;
                               const totalInst = t.totalInstallments || group.totalInstallments;
 
-                              // Verifica se esta parcela é da fatura deste mês ou se é fatura futura
-                              let isThisMonth = false;
-                              let isFutureMonth = false;
-                              if (t.date) {
-                                const [y, m] = t.date.split('-').map(Number);
-                                if (y === currentYear && m === currentMonth) {
-                                  isThisMonth = true;
-                                } else if (y > currentYear || (y === currentYear && m > currentMonth)) {
-                                  isFutureMonth = true;
-                                }
-                              }
+                              // Status inteligente de cada parcela
+                              const isThisCycleActive = activeInst && t.id === activeInst.id && !t.isPaid;
+                              const isFuture = activeInst && instNumber > (activeInst.installmentNumber || 1) && !t.isPaid;
 
                               return (
                                 <div
                                   key={t.id}
                                   className={`py-2.5 px-2 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-900/60 rounded-xl transition-colors ${
-                                    isThisMonth ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''
+                                    isThisCycleActive ? 'bg-indigo-50/50 dark:bg-indigo-950/25 ring-1 ring-indigo-500/20' : ''
                                   }`}
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center ${
                                       t.isPaid
                                         ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                                        : isThisMonth
+                                        : isThisCycleActive
                                         ? 'bg-indigo-600 text-white'
                                         : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                     }`}>
@@ -554,19 +547,19 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                         <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
                                           Parcela {instNumber}/{totalInst}
                                         </p>
-                                        {isThisMonth && (
+                                        {isThisCycleActive && (
                                           <span className="text-[9px] font-extrabold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950 px-1.5 py-0.2 rounded">
-                                            Fatura Deste Mês
+                                            Fatura Aberta Atual
                                           </span>
                                         )}
-                                        {isFutureMonth && (
+                                        {isFuture && (
                                           <span className="text-[9px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">
                                             Fatura Futura
                                           </span>
                                         )}
                                       </div>
                                       <p className="text-[11px] text-slate-500">
-                                        Vencimento: {t.date}
+                                        Data / Vencimento: {t.date}
                                       </p>
                                     </div>
                                   </div>
@@ -580,13 +573,13 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                         <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                           <Check className="w-2.5 h-2.5 stroke-[3]" /> Fatura Paga
                                         </span>
+                                      ) : isThisCycleActive ? (
+                                        <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                          Aberta no Ciclo
+                                        </span>
                                       ) : (
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
-                                          isThisMonth
-                                            ? 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10'
-                                            : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10'
-                                        }`}>
-                                          Pendente
+                                        <span className="text-[10px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                          Pendente Futura
                                         </span>
                                       )}
                                     </div>
@@ -597,7 +590,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                         type="button"
                                         onClick={() => setPayingInstallmentTx(t)}
                                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/25 transition-transform active:scale-95"
-                                        title="Pagar apenas esta parcela com confirmação"
+                                        title="Pagar esta parcela com confirmação"
                                       >
                                         <CheckCircle2 className="w-3.5 h-3.5" />
                                         <span>Pagar</span>
