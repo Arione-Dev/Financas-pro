@@ -143,3 +143,4 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
     </div>
   );
 };
+

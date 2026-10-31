@@ -249,7 +249,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
         </button>
       </div>
 
-      {/* Lista de Cartões em Estilo Físico/Digital com Preset de Banco */}
+      {/* Lista de Cartões em Estilo Físico/Digital com Preset de Banco (Carrossel no Mobile, Grid no Desktop) */}
       {cards.length === 0 ? (
         <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center space-y-4">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
@@ -267,7 +267,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-2 snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
           {cards.map(c => {
             const isSelected = c.id === selectedCardId;
             const preset = getBankPreset(c.bank || c.name);
@@ -290,9 +290,9 @@ export const CardsView: React.FC<CardsViewProps> = ({
               <div
                 key={c.id}
                 onClick={() => setSelectedCardId(c.id)}
-                className={`p-5 rounded-3xl cursor-pointer transition-all relative overflow-hidden flex flex-col justify-between h-52 border shadow-lg ${
+                className={`p-5 rounded-3xl cursor-pointer transition-all relative overflow-hidden flex flex-col justify-between h-52 border shadow-lg shrink-0 w-[85vw] max-w-[340px] sm:w-auto snap-center ${
                   isSelected
-                    ? `border-indigo-400 ring-2 ring-indigo-500/50 scale-[1.02] bg-gradient-to-br ${preset.gradient} text-white`
+                    ? `border-indigo-400 ring-2 ring-indigo-500/50 scale-[1.01] sm:scale-[1.02] bg-gradient-to-br ${preset.gradient} text-white`
                     : `border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 text-slate-800 dark:text-white hover:border-slate-400`
                 }`}
               >
@@ -423,8 +423,8 @@ export const CardsView: React.FC<CardsViewProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="text-right">
+            <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0">
+              <div className="text-left sm:text-right">
                 <span className="text-[11px] text-slate-500 block">Total a pagar deste mês</span>
                 <span className={`text-xl font-extrabold ${currentInvoiceTotal > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
                   {formatCurrency(currentInvoiceTotal)}
@@ -470,13 +470,14 @@ export const CardsView: React.FC<CardsViewProps> = ({
                       key={group.key}
                       className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 overflow-hidden transition-all shadow-sm"
                     >
-                      {/* Linha Resumo da Compra (Clicável para expandir parcelas) */}
+                      {/* Linha Resumo da Compra (Adaptada para Mobile e Desktop) */}
                       <div
                         onClick={() => toggleGroup(group.key)}
-                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/40 transition-colors"
+                        className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/40 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        {/* Topo / Esquerda: Ícone, Título, Badge de Parcelas e Categoria */}
+                        <div className="flex items-start sm:items-center gap-3 min-w-0">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                             allPaid
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                               : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
@@ -488,13 +489,13 @@ export const CardsView: React.FC<CardsViewProps> = ({
                             )}
                           </div>
 
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                                 {group.title}
                               </h4>
                               {group.hasMultipleInstallments && (
-                                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                                   <Layers className="w-2.5 h-2.5" />
                                   {group.totalInstallments}x de {formatCurrency(group.installmentAmount)}
                                 </span>
@@ -502,36 +503,36 @@ export const CardsView: React.FC<CardsViewProps> = ({
                             </div>
 
                             <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <span>Total da compra: <strong className="text-slate-700 dark:text-slate-300">{formatCurrency(group.totalAmount)}</strong></span>
+                              <span>Total: <strong className="text-slate-700 dark:text-slate-300">{formatCurrency(group.totalAmount)}</strong></span>
                               {group.categoryName && (
                                 <>
                                   <span>•</span>
-                                  <span>{group.categoryName}</span>
+                                  <span className="font-medium text-slate-600 dark:text-slate-400">{group.categoryName}</span>
                                 </>
                               )}
                             </p>
                           </div>
                         </div>
 
-                        {/* Lado Direito do Resumo da Compra: Exibe a parcela do ciclo atual */}
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
+                        {/* Base no Mobile / Direita no Desktop: Valores e Ações */}
+                        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 dark:border-slate-800/60">
+                          <div className="text-left sm:text-right">
                             {group.hasMultipleInstallments ? (
                               <>
-                                <span className="text-[11px] text-slate-500 block">Nesta fatura:</span>
+                                <span className="text-[10px] sm:text-[11px] text-slate-500 block leading-tight">Nesta fatura:</span>
                                 <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
                                   {formatCurrency(group.installmentAmount)}
                                 </span>
                                 {allPaid ? (
-                                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Todas Pagas
+                                  <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Liquidada
                                   </span>
                                 ) : activeInst ? (
-                                  <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                  <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                     Parcela {activeInst.installmentNumber}/{group.totalInstallments}
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                  <span className="text-[9px] sm:text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                     Pendente
                                   </span>
                                 )}
@@ -542,11 +543,11 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                   {formatCurrency(group.totalAmount)}
                                 </span>
                                 {allPaid ? (
-                                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                  <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                     <Check className="w-2.5 h-2.5 stroke-[3]" /> Liquidada
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                  <span className="text-[9px] sm:text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                     Pendente
                                   </span>
                                 )}
@@ -555,16 +556,16 @@ export const CardsView: React.FC<CardsViewProps> = ({
                           </div>
 
                           {/* Ações da Compra: Quitar Compra, Editar Categoria/Nome, Excluir Compra */}
-                          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1 sm:gap-1.5" onClick={e => e.stopPropagation()}>
                             {!allPaid && onPayEntirePurchase && (
                               <button
                                 type="button"
                                 onClick={() => setPayingEntirePurchaseGroup(group)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/20 transition-transform active:scale-95"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] sm:text-xs shadow-sm shadow-emerald-600/20 transition-transform active:scale-95"
                                 title="Quitar todas as parcelas restantes desta compra"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Quitar Compra</span>
+                                <span className="inline">Quitar</span>
                               </button>
                             )}
 
@@ -572,10 +573,10 @@ export const CardsView: React.FC<CardsViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setEditingPurchaseGroup(group)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
                                 title="Editar categoria e nome da compra"
                               >
-                                <Edit2 className="w-4 h-4" />
+                                <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               </button>
                             )}
 
@@ -587,25 +588,26 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                     onDeleteEntirePurchase(group.items.map(t => t.id));
                                   }
                                 }}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                                 title="Excluir compra inteira"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               </button>
                             )}
-                          </div>
 
-                          <button
-                            type="button"
-                            className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                            title={isExpanded ? 'Ocultar parcelas' : 'Ver parcelas'}
-                          >
-                            {isExpanded ? (
-                              <ChevronUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5" />
-                            )}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleGroup(group.key)}
+                              className="p-1.5 sm:p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                              title={isExpanded ? 'Ocultar parcelas' : 'Ver parcelas'}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -629,7 +631,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                               return (
                                 <div
                                   key={t.id}
-                                  className={`py-2.5 px-2 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-900/60 rounded-xl transition-colors ${
+                                  className={`py-2.5 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 hover:bg-slate-50/80 dark:hover:bg-slate-900/60 rounded-xl transition-colors ${
                                     isThisCycleActive ? 'bg-indigo-50/50 dark:bg-indigo-950/25 ring-1 ring-indigo-500/20' : ''
                                   }`}
                                 >
@@ -676,8 +678,8 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-3">
-                                    <div className="text-right">
+                                  <div className="flex items-center justify-between sm:justify-end gap-2.5 sm:gap-3 shrink-0 pl-10 sm:pl-0">
+                                    <div className="text-left sm:text-right">
                                       <span className="font-extrabold text-xs text-slate-900 dark:text-white block">
                                         {formatCurrency(t.amount)}
                                       </span>
@@ -701,7 +703,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                       <button
                                         type="button"
                                         onClick={() => setPayingInstallmentTx(t)}
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/25 transition-transform active:scale-95"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/25 transition-transform active:scale-95"
                                         title="Pagar esta parcela com confirmação"
                                       >
                                         <CheckCircle2 className="w-3.5 h-3.5" />

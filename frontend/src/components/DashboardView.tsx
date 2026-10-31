@@ -117,12 +117,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Mini cards de resumo: Salário Fixo Mensal, Saídas, Faturas */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Salário do Mês</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 truncate">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="truncate">Salário</span>
             </div>
-            <p className="font-extrabold text-sm sm:text-base text-emerald-700 dark:text-emerald-400">
+            <p className="font-extrabold text-xs sm:text-base text-emerald-700 dark:text-emerald-400 truncate">
               {formatCurrency(summary.monthlySalary || 0)}
             </p>
             {summary.monthlySalary > 0 && (
@@ -132,22 +132,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </div>
 
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-              <TrendingDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-              <span>Saídas</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 truncate">
+              <TrendingDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+              <span className="truncate">Saídas</span>
             </div>
-            <p className="font-extrabold text-sm sm:text-base text-rose-700 dark:text-rose-400">
+            <p className="font-extrabold text-xs sm:text-base text-rose-700 dark:text-rose-400 truncate">
               {formatCurrency(summary.monthExpense)}
             </p>
           </div>
 
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-              <CardIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span>Faturas</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 truncate">
+              <CardIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="truncate">Faturas</span>
             </div>
-            <p className="font-extrabold text-sm sm:text-base text-amber-600 dark:text-amber-400">
+            <p className="font-extrabold text-xs sm:text-base text-amber-600 dark:text-amber-400 truncate">
               {formatCurrency(summary.openInvoicesTotal)}
             </p>
           </div>

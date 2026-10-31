@@ -81,10 +81,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={onOpenNewTransaction}
-            className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 transition-colors"
+            className="flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 bg-indigo-600 sm:bg-slate-100 sm:dark:bg-slate-800 hover:bg-indigo-700 sm:hover:bg-slate-200 sm:dark:hover:bg-slate-700 text-white sm:text-slate-800 sm:dark:text-slate-200 text-xs font-semibold rounded-xl border border-transparent sm:border-slate-300 sm:dark:border-slate-700 shadow-sm transition-transform active:scale-95"
+            title="Novo Lançamento"
           >
-            <PlusCircle className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Lançar</span>
+            <PlusCircle className="w-3.5 h-3.5 text-white sm:text-indigo-500" />
+            <span className="hidden sm:inline">Lançar</span>
           </button>
         </div>
       </header>
