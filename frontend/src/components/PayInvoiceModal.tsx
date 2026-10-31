@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Check, CheckCircle2, Wallet, CreditCard as CardIcon } from 'lucide-react';
 import { Account, CreditCard } from '../types';
+import { api } from '../services/api';
 
 interface PayInvoiceModalProps {
   isOpen: boolean;
@@ -19,7 +20,14 @@ export const PayInvoiceModal: React.FC<PayInvoiceModalProps> = ({
   invoiceAmount,
   accounts
 }) => {
-  const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('SALARIO');
+  const salaryBalance = api.getSalaryRemaining();
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedAccountId('SALARIO');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -60,56 +68,41 @@ export const PayInvoiceModal: React.FC<PayInvoiceModalProps> = ({
               {formatCurrency(invoiceAmount)}
             </p>
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-              Vencimento em {card.dueDay}/11
+              Vencimento dia {card.dueDay}
             </p>
           </div>
 
           {/* Seleção da Conta de Origem */}
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 block flex items-center gap-1.5">
-              <Wallet className="w-3.5 h-3.5" /> De qual conta vai sair o dinheiro?
+              <Wallet className="w-3.5 h-3.5 text-indigo-500" /> De qual conta vai sair o pagamento?
             </label>
-            <div className="space-y-2">
-              {accounts.map(acc => {
-                const isSelected = selectedAccountId === acc.id;
-                const hasBalance = acc.currentBalance >= invoiceAmount;
-                return (
-                  <div
-                    key={acc.id}
-                    onClick={() => setSelectedAccountId(acc.id)}
-                    className={`p-3 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
-                      isSelected
-                        ? 'border-indigo-600 bg-indigo-50/80 dark:bg-indigo-950/40 shadow-sm'
-                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs text-white"
-                        style={{ backgroundColor: acc.color }}
-                      >
-                        {acc.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-900 dark:text-white">{acc.name}</p>
-                        <p className="text-[11px] text-slate-500">Saldo: {formatCurrency(acc.currentBalance)}</p>
-                      </div>
-                    </div>
-
-                    {!hasBalance && (
-                      <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md font-semibold">
-                        Saldo insuficiente
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <select
+              value={selectedAccountId}
+              onChange={e => setSelectedAccountId(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-3.5 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="SALARIO">
+                💰 Salário do Mês Atual — Saldo: {formatCurrency(salaryBalance)} (Descontar do Salário)
+              </option>
+              <option value="ALREADY_PAID">
+                ✓ Já Paga Anteriormente (Marcar fatura paga sem descontar saldo)
+              </option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} — Saldo: {formatCurrency(acc.currentBalance)}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center">
-            Ao confirmar, o valor de <strong>{formatCurrency(invoiceAmount)}</strong> será debitado da sua conta e a fatura será liquidada.
-          </p>
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300">
+            {selectedAccountId === 'ALREADY_PAID'
+              ? 'A fatura será liquidada e o limite do cartão será liberado sem debitar de nenhuma conta ou salário.'
+              : selectedAccountId === 'SALARIO'
+              ? `Ao confirmar, o valor de ${formatCurrency(invoiceAmount)} será debitado do Salário do Mês Atual e a fatura será liquidada.`
+              : `Ao confirmar, o valor de ${formatCurrency(invoiceAmount)} será debitado da conta selecionada e a fatura será liquidada.`}
+          </div>
 
           <button
             type="submit"

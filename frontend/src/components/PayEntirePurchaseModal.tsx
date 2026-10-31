@@ -114,7 +114,10 @@ export const PayEntirePurchaseModal: React.FC<PayEntirePurchaseModalProps> = ({
               className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="SALARIO">
-                💰 Salário do Mês — Saldo: {formatCurrency(salaryBalance)}
+                💰 Salário do Mês Atual — Saldo: {formatCurrency(salaryBalance)} (Descontar do Salário)
+              </option>
+              <option value="ALREADY_PAID">
+                ✓ Já Pagas Anteriormente (Marcar todas restantes como pagas sem descontar saldo)
               </option>
               {accounts.map(acc => (
                 <option key={acc.id} value={acc.id}>
@@ -127,7 +130,11 @@ export const PayEntirePurchaseModal: React.FC<PayEntirePurchaseModalProps> = ({
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
             <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-600" />
             <span>
-              Ao confirmar a quitação, todas as <strong>{purchase.unpaidCount} parcelas restantes</strong> serão baixadas como pagas e o limite de <strong>{formatCurrency(totalToPay)}</strong> será totalmente liberado no seu cartão!
+              {selectedAccountId === 'ALREADY_PAID'
+                ? `Todas as ${purchase.unpaidCount} parcelas restantes serão marcadas como pagas e o limite de ${formatCurrency(totalToPay)} será liberado sem debitar nenhuma conta ou salário.`
+                : selectedAccountId === 'SALARIO'
+                ? `Ao confirmar a quitação, o valor de ${formatCurrency(totalToPay)} será descontado do Salário do Mês Atual e todas as ${purchase.unpaidCount} parcelas restantes serão quitadas, liberando o limite no cartão!`
+                : `Ao confirmar a quitação, o valor de ${formatCurrency(totalToPay)} será debitado da conta bancária e todas as ${purchase.unpaidCount} parcelas restantes serão quitadas, liberando o limite no cartão!`}
             </span>
           </div>
 

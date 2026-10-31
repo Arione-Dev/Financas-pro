@@ -105,7 +105,10 @@ export const PayInstallmentModal: React.FC<PayInstallmentModalProps> = ({
                 className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="SALARIO">
-                  💰 Salário do Mês — Saldo: {formatCurrency(salaryBalance)}
+                  💰 Salário do Mês Atual — Saldo: {formatCurrency(salaryBalance)} (Descontar do Salário)
+                </option>
+                <option value="ALREADY_PAID">
+                  ✓ Já Paga Anteriormente (Marcar paga sem descontar saldo atual)
                 </option>
                 {accounts.map(acc => (
                   <option key={acc.id} value={acc.id}>
@@ -116,7 +119,11 @@ export const PayInstallmentModal: React.FC<PayInstallmentModalProps> = ({
           </div>
 
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300">
-            Ao confirmar, o valor de <strong>{formatCurrency(transaction.amount)}</strong> será descontado do saldo da conta e o limite do cartão será liberado.
+            {selectedAccountId === 'ALREADY_PAID'
+              ? 'Esta parcela será marcada como paga e liberará o limite no cartão sem descontar de nenhuma conta ou salário.'
+              : selectedAccountId === 'SALARIO'
+              ? `Ao confirmar, o valor de ${formatCurrency(transaction.amount)} será descontado do Salário do Mês Atual e o limite do cartão será liberado.`
+              : `Ao confirmar, o valor de ${formatCurrency(transaction.amount)} será descontado da conta selecionada e o limite do cartão será liberado.`}
           </div>
 
           <div className="pt-2 flex gap-2">

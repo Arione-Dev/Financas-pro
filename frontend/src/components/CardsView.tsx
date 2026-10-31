@@ -53,9 +53,22 @@ export const CardsView: React.FC<CardsViewProps> = ({
     dueDay: number = 5,
     instNum: number = 1
   ): string => {
-    if (!baseDateStr) return '';
+    return getInstallmentDueInfo(baseDateStr, closingDay, dueDay, instNum).dueDateStr;
+  };
+
+  const getInstallmentDueInfo = (
+    baseDateStr: string,
+    closingDay: number = 25,
+    dueDay: number = 5,
+    instNum: number = 1
+  ) => {
+    if (!baseDateStr) {
+      return { dueDateStr: '', isPastDue: false, isCurrentCycle: false, isFuture: false };
+    }
     const [y, m, d] = baseDateStr.split('-').map(Number);
-    if (!y || !m || !d) return baseDateStr;
+    if (!y || !m || !d) {
+      return { dueDateStr: baseDateStr, isPastDue: false, isCurrentCycle: false, isFuture: false };
+    }
 
     // 1. Mês/Ano de fechamento da 1ª parcela
     let closingMonth = m;
@@ -92,7 +105,46 @@ export const CardsView: React.FC<CardsViewProps> = ({
     const actualDueDay = Math.min(dueDay, maxDays);
 
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(actualDueDay)}/${pad(dueMonth)}/${dueYear}`;
+    const dueDateStr = `${pad(actualDueDay)}/${pad(dueMonth)}/${dueYear}`;
+
+    // Data de vencimento como objeto Date
+    const dueDate = new Date(dueYear, dueMonth - 1, actualDueDay, 23, 59, 59);
+
+    // Hoje (zerando horas)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+
+    // Determina o ciclo ATUAL do cartão para este momento (hoje)
+    let currentClosingMonth = now.getMonth() + 1;
+    let currentClosingYear = now.getFullYear();
+    if (now.getDate() >= closingDay) {
+      currentClosingMonth += 1;
+      if (currentClosingMonth > 12) {
+        currentClosingMonth = 1;
+        currentClosingYear += 1;
+      }
+    }
+    let currentDueMonth = currentClosingMonth;
+    let currentDueYear = currentClosingYear;
+    if (dueDay < closingDay) {
+      currentDueMonth += 1;
+      if (currentDueMonth > 12) {
+        currentDueMonth = 1;
+        currentDueYear += 1;
+      }
+    }
+
+    const isCurrentCycle = (dueMonth === currentDueMonth && dueYear === currentDueYear);
+    const isPastDue = dueDate.getTime() < today.getTime() && !isCurrentCycle;
+    const isFuture = !isPastDue && !isCurrentCycle;
+
+    return {
+      dueDateStr,
+      dueDate,
+      isPastDue,
+      isCurrentCycle,
+      isFuture
+    };
   };
 
   const formatCurrency = (val: number) => {
@@ -144,6 +196,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
       unpaidAmount: number;
       paidCount: number;
       unpaidCount: number;
+      overdueCount: number;
       activeInstallment?: Transaction;
       items: Transaction[];
       hasMultipleInstallments: boolean;
@@ -169,8 +222,25 @@ export const CardsView: React.FC<CardsViewProps> = ({
       const paidAmount = paidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
       const unpaidAmount = unpaidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
 
-      // A parcela ativa da fatura atual é ESTRITAMENTE a primeira parcela ainda não paga!
-      const activeInstallment = items.find(t => !t.isPaid) || items[0];
+      // Determina a parcela do ciclo atual e parcelas atrasadas
+      const firstDate = first.date;
+      const closingD = selectedCard?.closingDay || 25;
+      const dueD = selectedCard?.dueDay || 5;
+
+      // 1º Tenta achar a parcela que cai no ciclo aberto atual e não está paga
+      const currentCycleUnpaid = unpaidItems.find(t => {
+        const info = getInstallmentDueInfo(firstDate, closingD, dueD, t.installmentNumber || 1);
+        return info.isCurrentCycle;
+      });
+
+      // Se houver no ciclo atual e não paga, essa é a ativa do ciclo. Caso contrário, a primeira não paga.
+      const activeInstallment = currentCycleUnpaid || unpaidItems[0] || items[0];
+
+      // Contagem de parcelas atrasadas (vencimento anterior a hoje e não pagas)
+      const overdueCount = unpaidItems.filter(t => {
+        const info = getInstallmentDueInfo(firstDate, closingD, dueD, t.installmentNumber || 1);
+        return info.isPastDue;
+      }).length;
 
       list.push({
         key,
@@ -183,6 +253,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
         unpaidAmount,
         paidCount: paidItems.length,
         unpaidCount: unpaidItems.length,
+        overdueCount,
         activeInstallment,
         items,
         hasMultipleInstallments: totalInstallments > 1 || items.length > 1
@@ -190,7 +261,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
     });
 
     return list;
-  }, [cardTransactions]);
+  }, [cardTransactions, selectedCard]);
 
   // Total da Fatura Atual:
   // Cada compra parcelada contribui com APENAS UMA parcela por ciclo (a primeira não paga)!
@@ -527,14 +598,19 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                   <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                     <Check className="w-2.5 h-2.5 stroke-[3]" /> Liquidada
                                   </span>
-                                ) : activeInst ? (
-                                  <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                    Parcela {activeInst.installmentNumber}/{group.totalInstallments}
-                                  </span>
                                 ) : (
-                                  <span className="text-[9px] sm:text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                    Pendente
-                                  </span>
+                                  <div className="flex flex-wrap items-center gap-1 justify-start sm:justify-end mt-0.5">
+                                    {group.overdueCount > 0 && (
+                                      <span className="text-[9px] sm:text-[10px] font-extrabold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-300 dark:border-rose-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                        ⚠️ {group.overdueCount} {group.overdueCount === 1 ? 'atrasada' : 'atrasadas'}
+                                      </span>
+                                    )}
+                                    {activeInst && !activeInst.isPaid && (
+                                      <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                        Parcela {activeInst.installmentNumber}/{group.totalInstallments}
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </>
                             ) : (
@@ -624,21 +700,35 @@ export const CardsView: React.FC<CardsViewProps> = ({
                               const instNumber = t.installmentNumber || 1;
                               const totalInst = t.totalInstallments || group.totalInstallments;
 
-                              // Status inteligente de cada parcela
-                              const isThisCycleActive = activeInst && t.id === activeInst.id && !t.isPaid;
-                              const isFuture = activeInst && instNumber > (activeInst.installmentNumber || 1) && !t.isPaid;
+                              // Status inteligente de cada parcela com data real de corte e vencimento
+                              const dueInfo = getInstallmentDueInfo(
+                                group.items[0]?.date || t.date,
+                                selectedCard.closingDay || 25,
+                                selectedCard.dueDay || 5,
+                                instNumber
+                              );
+
+                              const isPastDue = !t.isPaid && dueInfo.isPastDue;
+                              const isThisCycleActive = !t.isPaid && dueInfo.isCurrentCycle;
+                              const isFuture = !t.isPaid && dueInfo.isFuture;
 
                               return (
                                 <div
                                   key={t.id}
-                                  className={`py-2.5 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 hover:bg-slate-50/80 dark:hover:bg-slate-900/60 rounded-xl transition-colors ${
-                                    isThisCycleActive ? 'bg-indigo-50/50 dark:bg-indigo-950/25 ring-1 ring-indigo-500/20' : ''
+                                  className={`py-2.5 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 rounded-xl transition-colors ${
+                                    isPastDue
+                                      ? 'bg-rose-50/70 dark:bg-rose-950/25 ring-1 ring-rose-500/30'
+                                      : isThisCycleActive
+                                      ? 'bg-indigo-50/50 dark:bg-indigo-950/25 ring-1 ring-indigo-500/20'
+                                      : 'hover:bg-slate-50/80 dark:hover:bg-slate-900/60'
                                   }`}
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center ${
+                                    <div className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center shrink-0 ${
                                       t.isPaid
                                         ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                        : isPastDue
+                                        ? 'bg-rose-600 text-white font-black'
                                         : isThisCycleActive
                                         ? 'bg-indigo-600 text-white'
                                         : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -650,6 +740,16 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                         <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
                                           Parcela {instNumber}/{totalInst}
                                         </p>
+                                        {t.isPaid && (
+                                          <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded">
+                                            ✓ Paga
+                                          </span>
+                                        )}
+                                        {isPastDue && (
+                                          <span className="text-[9px] font-extrabold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 px-1.5 py-0.2 rounded inline-flex items-center gap-0.5">
+                                            ⚠️ Fatura Atrasada
+                                          </span>
+                                        )}
                                         {isThisCycleActive && (
                                           <span className="text-[9px] font-extrabold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950 px-1.5 py-0.2 rounded">
                                             Fatura Aberta Atual
@@ -662,8 +762,8 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                         )}
                                       </div>
                                       <p className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5 mt-0.5">
-                                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                                          Vencimento: {calculateDueDate(
+                                        <span className={`font-bold ${isPastDue ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                                          Vencimento: {dueInfo.dueDateStr || calculateDueDate(
                                             group.items[0]?.date || t.date,
                                             selectedCard.closingDay || 25,
                                             selectedCard.dueDay || 5,
@@ -687,6 +787,10 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                         <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                           <Check className="w-2.5 h-2.5 stroke-[3]" /> Fatura Paga
                                         </span>
+                                      ) : isPastDue ? (
+                                        <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-300 dark:border-rose-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                          Atrasada
+                                        </span>
                                       ) : isThisCycleActive ? (
                                         <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                           Aberta no Ciclo
@@ -703,11 +807,15 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                       <button
                                         type="button"
                                         onClick={() => setPayingInstallmentTx(t)}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/25 transition-transform active:scale-95"
-                                        title="Pagar esta parcela com confirmação"
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-transform active:scale-95 ${
+                                          isPastDue
+                                            ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25'
+                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25'
+                                        }`}
+                                        title={isPastDue ? "Regularizar parcela atrasada" : "Pagar esta parcela"}
                                       >
                                         <CheckCircle2 className="w-3.5 h-3.5" />
-                                        <span>Pagar</span>
+                                        <span>{isPastDue ? 'Regularizar' : 'Pagar'}</span>
                                       </button>
                                     )}
 
