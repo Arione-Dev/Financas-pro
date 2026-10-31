@@ -397,18 +397,27 @@ export const api = {
     const baseAmount = Number((data.amount / installments).toFixed(2));
     const createdList: Transaction[] = [];
 
-    const targetAcc = localAccounts.find(a => a.id === data.accountId) || localAccounts[0];
+    const targetAcc = localAccounts.find(a => String(a.id).toLowerCase() === String(data.accountId || '').toLowerCase()) || localAccounts[0];
+    const targetCard = localCards.find(c => String(c.id).toLowerCase() === String(data.creditCardId || '').toLowerCase()) || localCards[0];
 
     for (let i = 1; i <= installments; i++) {
+      let txDate = data.date || new Date().toISOString().split('T')[0];
+      if (i > 1) {
+        const d = new Date(txDate + 'T12:00:00');
+        d.setMonth(d.getMonth() + (i - 1));
+        txDate = d.toISOString().split('T')[0];
+      }
+
       const newT: Transaction = {
         id: 't-' + Date.now() + '-' + i,
         description: installments > 1 ? `${data.description} (${i}/${installments})` : data.description,
         amount: baseAmount,
-        date: data.date || new Date().toISOString().split('T')[0],
+        date: txDate,
         type: data.type || 'EXPENSE',
         paymentMethod: data.paymentMethod || 'PIX',
-        category: localCategories.find(c => c.id === data.categoryId) || localCategories[0],
-        creditCard: localCards.find(c => c.id === data.creditCardId),
+        category: localCategories.find(c => String(c.id).toLowerCase() === String(data.categoryId || '').toLowerCase()) || localCategories[0],
+        creditCard: data.paymentMethod === 'CREDIT_CARD' ? (targetCard || { id: data.creditCardId, name: 'Cartao de Credito', limitTotal: 5000, closingDay: 25, dueDay: 5, color: '#820AD1' }) : undefined,
+        creditCardId: data.paymentMethod === 'CREDIT_CARD' ? (data.creditCardId || targetCard?.id) : undefined,
         account: targetAcc,
         installmentNumber: i,
         totalInstallments: installments,

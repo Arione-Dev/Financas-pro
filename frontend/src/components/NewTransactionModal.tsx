@@ -69,7 +69,7 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
         type,
         paymentMethod: type === 'INCOME' ? 'PIX' : paymentMethod,
         accountId: paymentMethod !== 'CREDIT_CARD' || type === 'INCOME' ? (accountId || accounts[0]?.id) : undefined,
-        creditCardId: paymentMethod === 'CREDIT_CARD' && type === 'EXPENSE' ? creditCardId : undefined,
+        creditCardId: paymentMethod === 'CREDIT_CARD' && type === 'EXPENSE' ? (creditCardId || cards[0]?.id) : undefined,
         categoryId: categoryId || undefined,
         totalInstallments: paymentMethod === 'CREDIT_CARD' && type === 'EXPENSE' && !isRecurring ? installments : 1,
         isRecurring: type === 'EXPENSE' ? isRecurring : false

@@ -5,18 +5,17 @@ import com.financas.app.domain.enums.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
 public record TransactionCreateRequest(
-    UUID userId,
+    String userId,
     String description,
     BigDecimal amount,
     LocalDate date,
     TransactionType type,
     PaymentMethod paymentMethod,
-    UUID accountId,
-    UUID creditCardId,
-    UUID categoryId,
+    String accountId,
+    String creditCardId,
+    String categoryId,
     Integer totalInstallments,
     Boolean isRecurring
 ) {}
