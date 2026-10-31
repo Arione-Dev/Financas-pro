@@ -361,6 +361,27 @@ export const api = {
     return acc;
   },
 
+  async payInstallment(transactionId: string, accountId: string): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/transactions/${transactionId}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId })
+      });
+    } catch (e) {}
+
+    const tx = localTransactions.find(t => t.id === transactionId);
+    if (tx) {
+      tx.isPaid = true;
+      const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
+      if (acc) {
+        acc.currentBalance = Math.max(0, acc.currentBalance - (tx.amount || 0));
+        setStored('financas_accounts', localAccounts);
+      }
+      setStored('financas_transactions', localTransactions);
+    }
+  },
+
   async payInvoice(cardId: string, accountId: string, amount: number, invoiceId: string = 'inv-atual'): Promise<void> {
     try {
       await fetch(`${API_BASE}/cards/${cardId}/invoices/${invoiceId}/pay`, {

@@ -113,6 +113,16 @@ export const App: React.FC = () => {
     await loadAllData();
   };
 
+  const handlePayInstallment = async (transactionId: string, accountId: string) => {
+    await api.payInstallment(transactionId, accountId);
+    await loadAllData();
+  };
+
+  const handleDeleteTransaction = async (transactionId: string) => {
+    await api.deleteTransaction(transactionId);
+    await loadAllData();
+  };
+
   const handlePayInvoice = async (cardId: string, accountId: string, amount: number) => {
     await api.payInvoice(cardId, accountId, amount);
     await loadAllData();
@@ -210,6 +220,8 @@ export const App: React.FC = () => {
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
                 onPayInvoice={handlePayInvoice}
+                onPayInstallment={handlePayInstallment}
+                onDeleteTransaction={handleDeleteTransaction}
               />
             )}
           </>
