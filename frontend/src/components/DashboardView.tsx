@@ -20,6 +20,21 @@ interface DashboardViewProps {
   onSelectCard?: (cardId: string) => void;
 }
 
+const DISTINCT_CHART_COLORS = [
+  '#6366F1', // Indigo
+  '#EC4899', // Pink
+  '#10B981', // Emerald
+  '#F59E0B', // Amber
+  '#06B6D4', // Cyan
+  '#8B5CF6', // Purple
+  '#F97316', // Orange
+  '#EF4444', // Red
+  '#14B8A6', // Teal
+  '#3B82F6', // Blue
+  '#84CC16', // Lime
+  '#E11D48', // Rose
+];
+
 export const DashboardView: React.FC<DashboardViewProps> = ({
   summary,
   transactions,
@@ -198,7 +213,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       dataKey="amount"
                     >
                       {summary.categoryExpenses.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={DISTINCT_CHART_COLORS[index % DISTINCT_CHART_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
@@ -215,7 +230,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {summary.categoryExpenses.map((cat, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTINCT_CHART_COLORS[i % DISTINCT_CHART_COLORS.length] }} />
                       <span className="text-slate-700 dark:text-slate-300 font-medium">{cat.name}</span>
                     </div>
                     <div className="flex items-center gap-2">

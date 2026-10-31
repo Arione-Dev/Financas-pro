@@ -176,62 +176,103 @@ export const api = {
       return y === currentYear && m === currentMonth;
     };
 
-    const isCurrentOrPastMonth = (dateStr?: string) => {
-      if (!dateStr) return true;
-      const [y, m] = dateStr.split('-').map(Number);
-      if (y < currentYear) return true;
-      if (y === currentYear && m <= currentMonth) return true;
-      return false;
-    };
+    // Despesas pagas em dinheiro/débito/pix ou parcelas pagas (Saídas reais de caixa do mês)
+    const cashExpenses = localTransactions
+      .filter(t => t.type === 'EXPENSE' && (t.paymentMethod !== 'CREDIT_CARD' || t.isPaid) && isCurrentMonth(t.date))
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    const salaryRemaining = Math.max(0, monthlySalary - cashExpenses);
+
+    // Faturas abertas deste ciclo:
+    // Calcula com precisão a fatura atual (deste mês) para cada cartão ativo
+    let totalOpenInvoicesThisCycle = 0;
+    const activeCycleTransactions: Transaction[] = [];
+
+    localCards.forEach(card => {
+      const cardId = String(card.id).toLowerCase();
+      const cardTxs = localTransactions.filter(t => {
+        if (t.paymentMethod !== 'CREDIT_CARD') return false;
+        const tCardId = String(t.creditCard?.id || (t as any).creditCardId || '').toLowerCase();
+        return tCardId === cardId;
+      });
+
+      const groupsMap = new Map<string, Transaction[]>();
+      cardTxs.forEach(t => {
+        const match = t.description.match(/^(.*?)(?:\s*\(\d+\/\d+\))?$/);
+        const baseName = match && match[1] ? match[1].trim() : t.description;
+        const groupKey = t.installmentGroupId || `${baseName}__${t.totalInstallments || 1}`;
+        if (!groupsMap.has(groupKey)) groupsMap.set(groupKey, []);
+        groupsMap.get(groupKey)!.push(t);
+      });
+
+      const dueDay = card.dueDay || 5;
+      const closingDay = card.closingDay || 25;
+      let targetDueMonth = currentMonth;
+      let targetDueYear = currentYear;
+      if (now.getDate() > dueDay) {
+        targetDueMonth += 1;
+        if (targetDueMonth > 12) {
+          targetDueMonth = 1;
+          targetDueYear += 1;
+        }
+      }
+
+      groupsMap.forEach(items => {
+        items.sort((a, b) => (a.installmentNumber ?? 1) - (b.installmentNumber ?? 1));
+        const first = items[0];
+        const unpaid = items.filter(t => !t.isPaid);
+        if (unpaid.length === 0) return;
+
+        if (items.length === 1 && (!first.totalInstallments || first.totalInstallments <= 1)) {
+          totalOpenInvoicesThisCycle += Number(first.amount) || 0;
+          activeCycleTransactions.push(first);
+        } else {
+          const currentCycleInst = unpaid.find(t => {
+            const instNum = t.installmentNumber || 1;
+            const [y, m, d] = (first.date || t.date).split('-').map(Number);
+            let closingMonth = m;
+            let closingYear = y;
+            if (d >= closingDay) closingMonth += 1;
+            while (closingMonth > 12) { closingMonth -= 12; closingYear += 1; }
+            closingMonth += Math.max(0, instNum - 1);
+            while (closingMonth > 12) { closingMonth -= 12; closingYear += 1; }
+            let dueMonth = closingMonth;
+            let dueYear = closingYear;
+            if (dueDay < closingDay) dueMonth += 1;
+            while (dueMonth > 12) { dueMonth -= 12; dueYear += 1; }
+            return dueMonth === targetDueMonth && dueYear === targetDueYear;
+          });
+
+          const activeInst = currentCycleInst || unpaid[0];
+          if (activeInst && !activeInst.isPaid) {
+            totalOpenInvoicesThisCycle += Number(activeInst.amount) || 0;
+            activeCycleTransactions.push(activeInst);
+          }
+        }
+      });
+    });
+
+    const openInvoicesTotal = totalOpenInvoicesThisCycle;
+
+    // Saídas: apenas gastos efetivamente desembolsados (dinheiro/pix/débito/parcelas pagas)
+    const monthExpense = cashExpenses;
 
     const otherIncome = localTransactions
       .filter(t => t.type === 'INCOME' && isCurrentMonth(t.date))
       .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
-    try {
-      const res = await fetch(`${API_BASE}/dashboard/summary`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && (Number(data.totalBalance) >= 0 || Number(data.monthExpense) >= 0)) {
-          const cashExpenses = localTransactions
-            .filter(t => t.type === 'EXPENSE' && t.paymentMethod !== 'CREDIT_CARD' && isCurrentMonth(t.date))
-            .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-          const salaryRemaining = Math.max(0, monthlySalary - cashExpenses);
-          const accountsBalance = Number(data.totalBalance) || 0;
-          return {
-            ...data,
-            monthlySalary,
-            monthIncome: monthlySalary + otherIncome,
-            totalBalance: accountsBalance + salaryRemaining
-          };
-        }
-      }
-    } catch (e) {}
-
-    // Despesas do mês corrente
-    const expenseTransactions = localTransactions.filter(t => t.type === 'EXPENSE' && isCurrentMonth(t.date));
-    const monthExpense = expenseTransactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-    // Despesas pagas em dinheiro/débito/pix (que reduzem o salário do mês)
-    const cashExpenses = expenseTransactions
-      .filter(t => t.paymentMethod !== 'CREDIT_CARD')
-      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-    const salaryRemaining = Math.max(0, monthlySalary - cashExpenses);
-
-    // Fatura de cartão: ESTRITAMENTE compras com cartão (CREDIT_CARD). Pix/Débito/Dinheiro NUNCA entram aqui.
-    const openInvoicesTotal = localTransactions
-      .filter(t => t.paymentMethod === 'CREDIT_CARD' && !t.isPaid && isCurrentOrPastMonth(t.date))
-      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-    // Saldo Total Disponível = Saldo em contas + Saldo restante do salário do mês
     const accountsBalance = localAccounts.reduce((acc, a) => acc + (Number(a.currentBalance) || 0), 0);
     const totalBalance = accountsBalance + salaryRemaining;
     const monthIncome = monthlySalary + otherIncome;
 
-    // Agrupa estritamente as despesas reais por categoria (se não houver despesas, a lista fica vazia)
+    // Despesas por categoria deste mês: inclui desembolsos em dinheiro/pix/débito + parcelas do ciclo atual
+    const relevantExpenses = [
+      ...localTransactions.filter(t => t.type === 'EXPENSE' && t.paymentMethod !== 'CREDIT_CARD' && isCurrentMonth(t.date)),
+      ...activeCycleTransactions
+    ];
+
     const categoryTotals: Record<string, { name: string; color: string; amount: number }> = {};
-    for (const t of expenseTransactions) {
+    for (const t of relevantExpenses) {
       const catId = t.category?.id || (t as any).categoryId;
       const cat = localCategories.find(c => c.id === catId) || t.category;
       const catName = cat?.name || 'Outros';
@@ -244,11 +285,12 @@ export const api = {
       categoryTotals[catName].amount += amt;
     }
 
+    const totalCatAmount = Object.values(categoryTotals).reduce((acc, c) => acc + c.amount, 0);
     const categoryExpenses = Object.values(categoryTotals).map(item => ({
       name: item.name,
       color: item.color,
       amount: item.amount,
-      percentage: monthExpense > 0 ? (item.amount / monthExpense) * 100 : 0
+      percentage: totalCatAmount > 0 ? (item.amount / totalCatAmount) * 100 : 0
     }));
 
     return {
@@ -261,7 +303,7 @@ export const api = {
     };
   },
 
-    deduplicateTransactions(list: Transaction[]): Transaction[] {
+  deduplicateTransactions(list: Transaction[]): Transaction[] {
     const seen = new Set<string>();
     return list.filter(t => {
       const cardKey = String(t.creditCard?.id || (t as any).creditCardId || 'no-card').toLowerCase();
