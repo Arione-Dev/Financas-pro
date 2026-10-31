@@ -33,11 +33,20 @@ export const CardsView: React.FC<CardsViewProps> = ({
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
-  const selectedCard = cards.find(c => c.id === selectedCardId) || cards[0];
-  const cardTransactions = transactions.filter(t => 
-    t.paymentMethod === 'CREDIT_CARD' && 
-    (t.creditCard?.id === selectedCard?.id || (t as any).creditCardId === selectedCard?.id)
-  );
+  // Sincroniza o cartao selecionado caso a lista de cartoes mude
+  React.useEffect(() => {
+    if (cards.length > 0 && (!selectedCardId || !cards.some(c => String(c.id).toLowerCase() === String(selectedCardId).toLowerCase()))) {
+      setSelectedCardId(cards[0].id);
+    }
+  }, [cards, selectedCardId]);
+
+  const selectedCard = cards.find(c => String(c.id).toLowerCase() === String(selectedCardId).toLowerCase()) || cards[0];
+  const cardTransactions = transactions.filter(t => {
+    if (t.paymentMethod !== 'CREDIT_CARD' || !selectedCard) return false;
+    const tCardId = String(t.creditCard?.id || (t as any).creditCardId || '').toLowerCase();
+    const sCardId = String(selectedCard.id || '').toLowerCase();
+    return tCardId && sCardId && tCardId === sCardId;
+  });
 
   // Cálculo da fatura atual do cartão selecionado (apenas parcelas e compras em aberto/pendentes)
   const currentInvoiceTotal = cardTransactions.filter(t => !t.isPaid).reduce((acc, t) => acc + (t.amount || 0), 0);
@@ -91,11 +100,11 @@ export const CardsView: React.FC<CardsViewProps> = ({
           {cards.map(c => {
             const isSelected = c.id === selectedCardId;
             const preset = getBankPreset(c.bank || c.name);
-            const cardUnpaidTxs = transactions.filter(t =>
-              t.paymentMethod === 'CREDIT_CARD' &&
-              !t.isPaid &&
-              (t.creditCard?.id === c.id || (t as any).creditCardId === c.id)
-            );
+            const cardUnpaidTxs = transactions.filter(t => {
+              if (t.paymentMethod !== 'CREDIT_CARD' || t.isPaid) return false;
+              const tCardId = String(t.creditCard?.id || (t as any).creditCardId || '').toLowerCase();
+              return tCardId && tCardId === String(c.id).toLowerCase();
+            });
             const cardUsed = cardUnpaidTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
             const cardAvailable = Math.max(0, (c.limitTotal || 0) - cardUsed);
             const percentUsed = c.limitTotal > 0 ? Math.min(100, (cardUsed / c.limitTotal) * 100) : 0;

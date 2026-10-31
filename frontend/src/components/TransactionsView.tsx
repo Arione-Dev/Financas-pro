@@ -22,8 +22,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   };
 
   const filtered = transactions.filter(t => {
-    const matchesSearch = t.description.toLowerCase().includes(search.toLowerCase()) ||
-                          t.category?.name.toLowerCase().includes(search.toLowerCase());
+    const desc = (t.description || '').toLowerCase();
+    const cat = (t.category?.name || '').toLowerCase();
+    const s = search.toLowerCase();
+    const matchesSearch = desc.includes(s) || cat.includes(s);
     const matchesType = filterType === 'ALL' || t.type === filterType;
     return matchesSearch && matchesType;
   });

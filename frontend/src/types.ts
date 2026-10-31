@@ -55,7 +55,9 @@ export interface Transaction {
   paymentMethod: PaymentMethod;
   category?: Category;
   account?: Account;
+  accountId?: string;
   creditCard?: CreditCard;
+  creditCardId?: string;
   installmentNumber?: number;
   totalInstallments?: number;
   installmentGroupId?: string;

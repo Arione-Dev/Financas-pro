@@ -1,5 +1,6 @@
 package com.financas.app.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.financas.app.domain.enums.AccountType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,6 +25,7 @@ public class Account {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     @Column(nullable = false, length = 100)

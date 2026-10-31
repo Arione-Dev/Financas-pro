@@ -1,5 +1,7 @@
 package com.financas.app.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.financas.app.domain.enums.PaymentMethod;
 import com.financas.app.domain.enums.TransactionType;
 import jakarta.persistence.*;
@@ -26,22 +28,27 @@ public class Transaction {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "user"})
     private Account account;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credit_card_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "user"})
     private CreditCard creditCard;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "creditCard"})
     private Invoice invoice;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "user"})
     private Category category;
 
     @Enumerated(EnumType.STRING)

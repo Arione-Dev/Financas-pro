@@ -1,5 +1,6 @@
 package com.financas.app.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.financas.app.domain.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -21,6 +22,7 @@ public class Category {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id") // Se null, é global padrão
+    @JsonIgnore
     private User user;
 
     @Column(nullable = false, length = 80)

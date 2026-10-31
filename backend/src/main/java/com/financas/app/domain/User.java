@@ -1,5 +1,6 @@
 package com.financas.app.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -27,6 +28,7 @@ public class User {
     private String email;
 
     @Column(name = "password_hash")
+    @JsonIgnore
     private String passwordHash;
 
     @Column(name = "google_id")
