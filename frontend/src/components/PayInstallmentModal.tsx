@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle2, Wallet, CreditCard as CardIcon } from 'lucide-react';
 import { Transaction, Account } from '../types';
+import { api } from '../services/api';
 
 interface PayInstallmentModalProps {
   isOpen: boolean;
@@ -17,14 +18,15 @@ export const PayInstallmentModal: React.FC<PayInstallmentModalProps> = ({
   transaction,
   accounts
 }) => {
-  const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('SALARIO');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const salaryBalance = api.getSalaryRemaining();
 
   useEffect(() => {
-    if (accounts.length > 0 && (!selectedAccountId || !accounts.some(a => a.id === selectedAccountId))) {
-      setSelectedAccountId(accounts[0].id);
+    if (isOpen) {
+      setSelectedAccountId('SALARIO');
     }
-  }, [accounts, selectedAccountId, isOpen]);
+  }, [isOpen]);
 
   if (!isOpen || !transaction) return null;
 
@@ -34,11 +36,7 @@ export const PayInstallmentModal: React.FC<PayInstallmentModalProps> = ({
 
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault();
-    const targetAccountId = selectedAccountId || accounts[0]?.id;
-    if (!targetAccountId) {
-      alert('Selecione uma conta bancária para debitar o pagamento.');
-      return;
-    }
+    const targetAccountId = selectedAccountId || 'SALARIO';
 
     setIsSubmitting(true);
     try {
@@ -101,23 +99,20 @@ export const PayInstallmentModal: React.FC<PayInstallmentModalProps> = ({
               <span>Debitar de qual conta bancária?</span>
             </label>
 
-            {accounts.length === 0 ? (
-              <p className="text-xs text-amber-600 p-2.5 bg-amber-50 rounded-xl">
-                Nenhuma conta bancária encontrada. Cadastre uma conta primeiro.
-              </p>
-            ) : (
               <select
                 value={selectedAccountId}
                 onChange={e => setSelectedAccountId(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
+                <option value="SALARIO">
+                  💰 Salário do Mês — Saldo: {formatCurrency(salaryBalance)}
+                </option>
                 {accounts.map(acc => (
                   <option key={acc.id} value={acc.id}>
                     {acc.name} — Saldo: {formatCurrency(acc.currentBalance)}
                   </option>
                 ))}
               </select>
-            )}
           </div>
 
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300">

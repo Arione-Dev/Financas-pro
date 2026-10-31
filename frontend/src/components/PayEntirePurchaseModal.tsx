@@ -1,0 +1,156 @@
+import React, { useState, useEffect } from 'react';
+import { X, CheckCircle2, Wallet, Layers, ShieldCheck } from 'lucide-react';
+import { Account, Transaction } from '../types';
+import { api } from '../services/api';
+
+interface PayEntirePurchaseModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (transactionIds: string[], accountId: string, totalAmount: number) => void;
+  purchase: {
+    title: string;
+    unpaidCount: number;
+    unpaidAmount: number;
+    totalInstallments: number;
+    items: Transaction[];
+  } | null;
+  accounts: Account[];
+}
+
+export const PayEntirePurchaseModal: React.FC<PayEntirePurchaseModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  purchase,
+  accounts
+}) => {
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('SALARIO');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const salaryBalance = api.getSalaryRemaining();
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedAccountId('SALARIO');
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !purchase) return null;
+
+  const unpaidItems = purchase.items.filter(t => !t.isPaid);
+  const totalToPay = unpaidItems.reduce((acc, t) => acc + (t.amount || 0), 0);
+
+  const handleConfirm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (unpaidItems.length === 0) return;
+
+    setIsSubmitting(true);
+    try {
+      const ids = unpaidItems.map(t => t.id);
+      onConfirm(ids, selectedAccountId, totalToPay);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200">
+        
+        {/* Cabeçalho */}
+        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">Quitar Compra Inteira</h3>
+              <p className="text-xs text-slate-500">Liquidação antecipada de todas as parcelas</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleConfirm} className="p-5 space-y-4">
+          
+          {/* Card Resumo do Pagamento */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+            <div className="flex justify-between items-center text-xs text-slate-500">
+              <span>Compra</span>
+              <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                {purchase.unpaidCount} de {purchase.totalInstallments} parcelas pendentes
+              </span>
+            </div>
+            <p className="font-bold text-sm text-slate-900 dark:text-white">{purchase.title}</p>
+            
+            <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex justify-between items-baseline">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Total a Quitar:</span>
+              <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                {formatCurrency(totalToPay)}
+              </span>
+            </div>
+          </div>
+
+          {/* Seleção da Conta de Origem (Salário do Mês ou Contas Bancárias) */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Debitar de qual saldo / conta?</span>
+            </label>
+
+            <select
+              value={selectedAccountId}
+              onChange={e => setSelectedAccountId(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="SALARIO">
+                💰 Salário do Mês — Saldo: {formatCurrency(salaryBalance)}
+              </option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} — Saldo: {formatCurrency(acc.currentBalance)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
+            <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-600" />
+            <span>
+              Ao confirmar a quitação, todas as <strong>{purchase.unpaidCount} parcelas restantes</strong> serão baixadas como pagas e o limite de <strong>{formatCurrency(totalToPay)}</strong> será totalmente liberado no seu cartão!
+            </span>
+          </div>
+
+          <div className="pt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-2xl transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || unpaidItems.length === 0}
+              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{isSubmitting ? 'Quitando...' : 'Confirmar Quitação Total'}</span>
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  );
+};

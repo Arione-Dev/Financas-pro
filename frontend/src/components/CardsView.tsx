@@ -1,38 +1,50 @@
 import React, { useState } from 'react';
-import { CreditCard as CardIcon, Calendar, Layers, ShieldCheck, Plus, Trash2, CheckCircle2, ChevronRight, ChevronDown, ChevronUp, AlertCircle, Check, Wallet } from 'lucide-react';
-import { CreditCard, Transaction, Account } from '../types';
+import { CreditCard as CardIcon, Calendar, Layers, ShieldCheck, Plus, Trash2, CheckCircle2, ChevronRight, ChevronDown, ChevronUp, AlertCircle, Check, Wallet, Edit2 } from 'lucide-react';
+import { CreditCard, Transaction, Account, Category } from '../types';
 import { BANK_PRESETS, getBankPreset } from '../constants/banks';
 import { CardModal } from './CardModal';
 import { PayInvoiceModal } from './PayInvoiceModal';
 import { PayInstallmentModal } from './PayInstallmentModal';
+import { EditPurchaseModal } from './EditPurchaseModal';
+import { PayEntirePurchaseModal } from './PayEntirePurchaseModal';
 
 interface CardsViewProps {
   cards: CreditCard[];
   transactions: Transaction[];
   accounts: Account[];
+  categories?: Category[];
   isPrivacyMode: boolean;
   onAddCard: (card: Partial<CreditCard>) => void;
   onDeleteCard: (cardId: string) => void;
   onPayInvoice: (cardId: string, accountId: string, amount: number) => void;
   onPayInstallment?: (transactionId: string, accountId: string) => void;
   onDeleteTransaction?: (transactionId: string) => void;
+  onPayEntirePurchase?: (transactionIds: string[], accountId: string, totalAmount: number) => void;
+  onDeleteEntirePurchase?: (transactionIds: string[]) => void;
+  onUpdatePurchase?: (transactionIds: string[], data: { description: string; categoryId: string }) => void;
 }
 
 export const CardsView: React.FC<CardsViewProps> = ({
   cards,
   transactions,
   accounts,
+  categories = [],
   isPrivacyMode,
   onAddCard,
   onDeleteCard,
   onPayInvoice,
   onPayInstallment,
-  onDeleteTransaction
+  onDeleteTransaction,
+  onPayEntirePurchase,
+  onDeleteEntirePurchase,
+  onUpdatePurchase
 }) => {
   const [selectedCardId, setSelectedCardId] = useState<string>(cards[0]?.id || '');
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState<boolean>(false);
   const [payingInstallmentTx, setPayingInstallmentTx] = useState<Transaction | null>(null);
+  const [editingPurchaseGroup, setEditingPurchaseGroup] = useState<any | null>(null);
+  const [payingEntirePurchaseGroup, setPayingEntirePurchaseGroup] = useState<any | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const calculateDueDate = (
@@ -542,6 +554,47 @@ export const CardsView: React.FC<CardsViewProps> = ({
                             )}
                           </div>
 
+                          {/* Ações da Compra: Quitar Compra, Editar Categoria/Nome, Excluir Compra */}
+                          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                            {!allPaid && onPayEntirePurchase && (
+                              <button
+                                type="button"
+                                onClick={() => setPayingEntirePurchaseGroup(group)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/20 transition-transform active:scale-95"
+                                title="Quitar todas as parcelas restantes desta compra"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Quitar Compra</span>
+                              </button>
+                            )}
+
+                            {onUpdatePurchase && (
+                              <button
+                                type="button"
+                                onClick={() => setEditingPurchaseGroup(group)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                                title="Editar categoria e nome da compra"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {onDeleteEntirePurchase && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`Tem certeza que deseja excluir toda a compra "${group.title}" (${group.items.length} parcelas)? Todas as parcelas serão apagadas definitivamente.`)) {
+                                    onDeleteEntirePurchase(group.items.map(t => t.id));
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                title="Excluir compra inteira"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+
                           <button
                             type="button"
                             className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
@@ -716,6 +769,32 @@ export const CardsView: React.FC<CardsViewProps> = ({
           }
         }}
         transaction={payingInstallmentTx}
+        accounts={accounts}
+      />
+
+      {/* Modal de Edição de Compra e Categoria */}
+      <EditPurchaseModal
+        isOpen={!!editingPurchaseGroup}
+        onClose={() => setEditingPurchaseGroup(null)}
+        onSave={(ids, data) => {
+          if (onUpdatePurchase) {
+            onUpdatePurchase(ids, data);
+          }
+        }}
+        purchase={editingPurchaseGroup}
+        categories={categories}
+      />
+
+      {/* Modal de Quitação Total da Compra */}
+      <PayEntirePurchaseModal
+        isOpen={!!payingEntirePurchaseGroup}
+        onClose={() => setPayingEntirePurchaseGroup(null)}
+        onConfirm={(ids, accId, totalAmount) => {
+          if (onPayEntirePurchase) {
+            onPayEntirePurchase(ids, accId, totalAmount);
+          }
+        }}
+        purchase={payingEntirePurchaseGroup}
         accounts={accounts}
       />
     </div>
