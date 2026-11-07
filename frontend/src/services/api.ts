@@ -240,10 +240,14 @@ export const api = {
             let dueYear = closingYear;
             if (dueDay < closingDay) dueMonth += 1;
             while (dueMonth > 12) { dueMonth -= 12; dueYear += 1; }
-            return dueMonth === targetDueMonth && dueYear === targetDueYear;
+
+            const isCurrentCycle = dueMonth === targetDueMonth && dueYear === targetDueYear;
+            const isPastDue = (dueYear < targetDueYear) || (dueYear === targetDueYear && dueMonth < targetDueMonth);
+            return isCurrentCycle || isPastDue;
           });
 
-          const activeInst = currentCycleInst || unpaid[0];
+          // NUNCA fazer fallback para parcelas futuras (unpaid[0])! Apenas se for do ciclo atual ou atrasada
+          const activeInst = currentCycleInst;
           if (activeInst && !activeInst.isPaid) {
             totalOpenInvoicesThisCycle += Number(activeInst.amount) || 0;
             activeCycleTransactions.push(activeInst);

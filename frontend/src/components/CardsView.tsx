@@ -210,6 +210,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
       unpaidCount: number;
       overdueCount: number;
       activeInstallment?: Transaction;
+      nextFutureInst?: Transaction;
       items: Transaction[];
       hasMultipleInstallments: boolean;
     }[] = [];
@@ -239,14 +240,21 @@ export const CardsView: React.FC<CardsViewProps> = ({
       const closingD = selectedCard?.closingDay || 25;
       const dueD = selectedCard?.dueDay || 5;
 
-      // 1º Tenta achar a parcela que cai no ciclo aberto atual e não está paga
+      // 1º Tenta achar a parcela que cai no ciclo aberto atual e não está paga (ou a mais antiga atrasada não paga)
       const currentCycleUnpaid = unpaidItems.find(t => {
         const info = getInstallmentDueInfo(firstDate, closingD, dueD, t.installmentNumber || 1);
-        return info.isCurrentCycle;
+        return info.isCurrentCycle || info.isPastDue;
       });
 
-      // Se houver no ciclo atual e não paga, essa é a ativa do ciclo. Caso contrário, a primeira não paga.
-      const activeInstallment = currentCycleUnpaid || unpaidItems[0] || items[0];
+      // Próxima parcela futura (se houver, para referência visual)
+      const nextFutureInst = unpaidItems.find(t => {
+        const info = getInstallmentDueInfo(firstDate, closingD, dueD, t.installmentNumber || 1);
+        return info.isFuture;
+      });
+
+      // A parcela ativa nesta fatura só existe se ela pertencer ao ciclo atual ou for atrasada!
+      // NUNCA fazer fallback para parcelas futuras de outro mês!
+      const activeInstallment = currentCycleUnpaid;
 
       // Contagem de parcelas atrasadas (vencimento anterior a hoje e não pagas)
       const overdueCount = unpaidItems.filter(t => {
@@ -267,6 +275,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
         unpaidCount: unpaidItems.length,
         overdueCount,
         activeInstallment,
+        nextFutureInst,
         items,
         hasMultipleInstallments: totalInstallments > 1 || items.length > 1
       });
@@ -276,15 +285,20 @@ export const CardsView: React.FC<CardsViewProps> = ({
   }, [cardTransactions, selectedCard]);
 
   // Total da Fatura Atual:
-  // Cada compra parcelada contribui com APENAS UMA parcela por ciclo (a primeira não paga)!
-  // Compras à vista entram integralmente se não pagas.
+  // Inclui APENAS parcelas e compras que vencem no ciclo atual (ou atrasadas não pagas).
+  // NUNCA inclui parcelas futuras de outros meses!
   const currentInvoiceTransactions: Transaction[] = React.useMemo(() => {
     const activeList: Transaction[] = [];
 
     groupedPurchases.forEach(group => {
       if (!group.hasMultipleInstallments) {
         group.items.forEach(t => {
-          if (!t.isPaid) activeList.push(t);
+          if (!t.isPaid) {
+            const info = getInstallmentDueInfo(t.date, selectedCard?.closingDay, selectedCard?.dueDay, 1);
+            if (!info.isFuture) {
+              activeList.push(t);
+            }
+          }
         });
       } else {
         if (group.activeInstallment && !group.activeInstallment.isPaid) {
@@ -294,7 +308,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
     });
 
     return activeList;
-  }, [groupedPurchases]);
+  }, [groupedPurchases, selectedCard]);
 
   const currentInvoiceTotal = currentInvoiceTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
 
@@ -625,27 +639,35 @@ export const CardsView: React.FC<CardsViewProps> = ({
                           <div className="text-left sm:text-right">
                             {group.hasMultipleInstallments ? (
                               <>
-                                <span className="text-[10px] sm:text-[11px] text-slate-500 block leading-tight">Nesta fatura:</span>
-                                <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
-                                  {formatCurrency(group.installmentAmount)}
-                                </span>
-                                {allPaid ? (
-                                  <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Liquidada
-                                  </span>
-                                ) : (
-                                  <div className="flex flex-wrap items-center gap-1 justify-start sm:justify-end mt-0.5">
-                                    {group.overdueCount > 0 && (
-                                      <span className="text-[9px] sm:text-[10px] font-extrabold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-300 dark:border-rose-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                        ⚠️ {group.overdueCount} {group.overdueCount === 1 ? 'atrasada' : 'atrasadas'}
-                                      </span>
-                                    )}
-                                    {activeInst && !activeInst.isPaid && (
+                                {activeInst ? (
+                                  <>
+                                    <span className="text-[10px] sm:text-[11px] text-slate-500 block leading-tight">Nesta fatura:</span>
+                                    <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
+                                      {formatCurrency(group.installmentAmount)}
+                                    </span>
+                                    <div className="flex flex-wrap items-center gap-1 justify-start sm:justify-end mt-0.5">
+                                      {group.overdueCount > 0 && (
+                                        <span className="text-[9px] sm:text-[10px] font-extrabold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-300 dark:border-rose-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                          ⚠️ {group.overdueCount} {group.overdueCount === 1 ? 'atrasada' : 'atrasadas'}
+                                        </span>
+                                      )}
                                       <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                         Parcela {activeInst.installmentNumber}/{group.totalInstallments}
                                       </span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="text-[10px] sm:text-[11px] text-slate-500 block leading-tight">Fatura do mês:</span>
+                                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 block">
+                                      {allPaid ? 'Liquidada' : 'Parcela Paga'}
+                                    </span>
+                                    {!allPaid && group.nextFutureInst && (
+                                      <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 inline-flex items-center gap-1 mt-0.5">
+                                        Próxima: Parcela {group.nextFutureInst.installmentNumber}/{group.totalInstallments}
+                                      </span>
                                     )}
-                                  </div>
+                                  </>
                                 )}
                               </>
                             ) : (
