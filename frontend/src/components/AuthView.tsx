@@ -74,9 +74,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, theme, onTog
 
         {/* Logo & Boas-vindas */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-3xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white font-black text-2xl flex items-center justify-center mx-auto shadow-xl shadow-indigo-600/30">
-            F
-          </div>
+          <img 
+            src="/pwa-192x192.png" 
+            alt="Finanças Pro" 
+            className="w-16 h-16 rounded-3xl mx-auto shadow-xl shadow-indigo-600/30 object-cover" 
+          />
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
             Finanças Pro
           </h1>

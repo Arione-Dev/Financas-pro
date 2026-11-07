@@ -31,9 +31,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* HEADER SUPERIOR (Visível em celular e PC) */}
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-3.5 sm:px-8 py-3 sm:py-3.5 flex items-center justify-between transition-colors">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="hidden sm:flex w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 items-center justify-center font-black text-white text-sm shadow-md shadow-indigo-600/30 shrink-0">
-            F
-          </div>
+          <img 
+            src="/pwa-192x192.png" 
+            alt="Finanças Pro" 
+            className="w-8 h-8 rounded-xl shadow-md shadow-indigo-600/20 shrink-0 hidden sm:block object-cover" 
+          />
           <div className="min-w-0">
             <h1 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight truncate">Finanças Pro</h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 hidden sm:block">PWA • Gestão Inteligente com IA</p>
