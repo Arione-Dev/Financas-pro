@@ -104,5 +104,11 @@ export interface DashboardSummary {
     amount: number;
     percentage: number;
   }[];
+  categoryExpensesPending?: {
+    name: string;
+    color: string;
+    amount: number;
+    percentage: number;
+  }[];
 }
 

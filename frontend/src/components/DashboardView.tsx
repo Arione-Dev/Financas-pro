@@ -50,6 +50,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectTab,
   onSelectCard
 }) => {
+  const [categoryViewFilter, setCategoryViewFilter] = React.useState<'ALL' | 'PENDING'>('ALL');
+
+  const displayedCategories = (categoryViewFilter === 'PENDING' && summary.categoryExpensesPending)
+    ? summary.categoryExpensesPending
+    : summary.categoryExpenses;
+
+  const totalDisplayedCatAmount = displayedCategories.reduce((acc, c) => acc + c.amount, 0);
 
   // Cálculo inteligente e real da taxa mensal
   const monthlyRate = React.useMemo(() => {
@@ -195,24 +202,64 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Gráfico Donut de Despesas */}
         <div className="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xl transition-colors">
-          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-4 flex items-center justify-between">
-            <span>Despesas por Categoria</span>
-            <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Este mês</span>
-          </h3>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div>
+              <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                Despesas por Categoria
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {categoryViewFilter === 'ALL' ? 'Total gasto no mês: ' : 'Restante a pagar: '}
+                <strong className={categoryViewFilter === 'ALL' ? 'text-slate-800 dark:text-slate-200 font-bold' : 'text-amber-600 dark:text-amber-400 font-bold'}>
+                  {formatCurrency(totalDisplayedCatAmount)}
+                </strong>
+              </p>
+            </div>
 
-          {summary.categoryExpenses.length > 0 ? (
+            {/* Filtro: Geral do Mês vs A Pagar */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs">
+              <button
+                type="button"
+                onClick={() => setCategoryViewFilter('ALL')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  categoryViewFilter === 'ALL'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+                title="Exibir todos os gastos e compras realizadas neste ciclo/mês (mesmo as já pagas)"
+              >
+                Geral do Mês
+              </button>
+              <button
+                type="button"
+                onClick={() => setCategoryViewFilter('PENDING')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                  categoryViewFilter === 'PENDING'
+                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+                title="Exibir apenas o restante dos gastos e faturas que ainda falta pagar"
+              >
+                <span>A Pagar</span>
+                {summary.categoryExpensesPending && summary.categoryExpensesPending.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse"></span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {displayedCategories.length > 0 ? (
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="w-44 h-44 relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={summary.categoryExpenses}
+                      data={displayedCategories}
                       innerRadius={50}
                       outerRadius={75}
                       paddingAngle={4}
                       dataKey="amount"
                     >
-                      {summary.categoryExpenses.map((entry, index) => (
+                      {displayedCategories.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={DISTINCT_CHART_COLORS[index % DISTINCT_CHART_COLORS.length]} />
                       ))}
                     </Pie>
@@ -227,7 +274,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
 
               <div className="flex-1 w-full space-y-2">
-                {summary.categoryExpenses.map((cat, i) => (
+                {displayedCategories.map((cat, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTINCT_CHART_COLORS[i % DISTINCT_CHART_COLORS.length] }} />
@@ -242,7 +289,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             </div>
           ) : (
-            <p className="text-xs text-slate-500 text-center py-8">Nenhum gasto registrado neste mês ainda.</p>
+            <p className="text-xs text-slate-500 text-center py-8">
+              {categoryViewFilter === 'PENDING' ? 'Parabéns! Nenhuma despesa pendente para pagar neste mês.' : 'Nenhum gasto registrado neste mês ainda.'}
+            </p>
           )}
         </div>
 

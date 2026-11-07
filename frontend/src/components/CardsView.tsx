@@ -621,7 +621,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                               <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                                 {group.title}
                               </h4>
-                              {group.hasMultipleInstallments && (
+                              {group.hasMultipleInstallments && group.totalInstallments > 1 && (
                                 <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                                   <Layers className="w-2.5 h-2.5" />
                                   {group.totalInstallments}x de {formatCurrency(group.installmentAmount)}
@@ -650,7 +650,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                   <>
                                     <span className="text-[10px] sm:text-[11px] text-slate-500 block leading-tight">Nesta fatura:</span>
                                     <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
-                                      {formatCurrency(group.installmentAmount)}
+                                      {formatCurrency(activeInst.amount)}
                                     </span>
                                     <div className="flex flex-wrap items-center gap-1 justify-start sm:justify-end mt-0.5">
                                       {group.overdueCount > 0 && (
@@ -659,7 +659,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                         </span>
                                       )}
                                       <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                        Parcela {activeInst.installmentNumber}/{group.totalInstallments}
+                                        {group.totalInstallments > 1 ? `Parcela ${activeInst.installmentNumber}/${group.totalInstallments}` : 'Neste Ciclo'}
                                       </span>
                                     </div>
                                   </>
@@ -755,7 +755,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                       {isExpanded && (
                         <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40 p-3 sm:p-4 space-y-2">
                           <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 px-2 pb-1">
-                            <span>Ordem das Parcelas (1/{group.totalInstallments} a {group.totalInstallments}/{group.totalInstallments})</span>
+                            <span>{group.totalInstallments > 1 ? `Ordem das Parcelas (1/${group.totalInstallments} a ${group.totalInstallments}/${group.totalInstallments})` : 'Lançamentos desta Compra'}</span>
                             <span>Ação Individual</span>
                           </div>
 
@@ -802,7 +802,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                                     <div>
                                       <div className="flex items-center gap-2">
                                         <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                          Parcela {instNumber}/{totalInst}
+                                          {totalInst > 1 ? `Parcela ${instNumber}/${totalInst}` : 'Lançamento no Cartão'}
                                         </p>
                                         {t.isPaid && (
                                           <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded">

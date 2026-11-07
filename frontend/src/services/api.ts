@@ -183,10 +183,13 @@ export const api = {
 
     const salaryRemaining = Math.max(0, monthlySalary - cashExpenses);
 
-    // Faturas abertas deste ciclo:
-    // Calcula com precisão a fatura atual (deste mês) para cada cartão ativo
+    // Faturas deste ciclo:
+    // Separa com rigor:
+    // 1) allCycleTransactions: todos os lançamentos pertencentes a este ciclo (pagos ou não), para refletir o consumo real do mês nas categorias.
+    // 2) pendingCycleTransactions: apenas os lançamentos que ainda estão em aberto (a pagar).
     let totalOpenInvoicesThisCycle = 0;
-    const activeCycleTransactions: Transaction[] = [];
+    const allCycleTransactions: Transaction[] = [];
+    const pendingCycleTransactions: Transaction[] = [];
 
     localCards.forEach(card => {
       const cardId = String(card.id).toLowerCase();
@@ -225,32 +228,37 @@ export const api = {
       groupsMap.forEach(items => {
         items.sort((a, b) => (a.installmentNumber ?? 1) - (b.installmentNumber ?? 1));
         const first = items[0];
-        const unpaid = items.filter(t => !t.isPaid);
-        if (unpaid.length === 0) return;
+        const isInstallment = (first.totalInstallments && first.totalInstallments > 1) || (first.installmentNumber && first.installmentNumber > 1);
 
-        if (items.length === 1 && (!first.totalInstallments || first.totalInstallments <= 1)) {
-          // Compra à vista: inclui apenas se pertencer ao ciclo atual ou for atrasada
-          const [y, m, d] = (first.date).split('-').map(Number);
-          let closingMonth = m;
-          let closingYear = y;
-          if (d >= closingDay) closingMonth += 1;
-          while (closingMonth > 12) { closingMonth -= 12; closingYear += 1; }
-          let dueMonth = closingMonth;
-          let dueYear = closingYear;
-          if (dueDay < closingDay) dueMonth += 1;
-          while (dueMonth > 12) { dueMonth -= 12; dueYear += 1; }
+        if (!isInstallment) {
+          // Compras à vista: todas pertencentes a este ciclo ou atrasadas
+          items.forEach(item => {
+            const [y, m, d] = (item.date).split('-').map(Number);
+            let closingMonth = m;
+            let closingYear = y;
+            if (d >= closingDay) closingMonth += 1;
+            while (closingMonth > 12) { closingMonth -= 12; closingYear += 1; }
+            let dueMonth = closingMonth;
+            let dueYear = closingYear;
+            if (dueDay < closingDay) dueMonth += 1;
+            while (dueMonth > 12) { dueMonth -= 12; dueYear += 1; }
 
-          const isCurrentCycle = dueMonth === targetDueMonth && dueYear === targetDueYear;
-          const isPastDue = (dueYear < targetDueYear) || (dueYear === targetDueYear && dueMonth < targetDueMonth);
+            const isCurrentCycle = dueMonth === targetDueMonth && dueYear === targetDueYear;
+            const isPastDue = (dueYear < targetDueYear) || (dueYear === targetDueYear && dueMonth < targetDueMonth);
 
-          if (isCurrentCycle || isPastDue) {
-            totalOpenInvoicesThisCycle += Number(first.amount) || 0;
-            activeCycleTransactions.push(first);
-          }
+            if (isCurrentCycle || isPastDue) {
+              allCycleTransactions.push(item);
+              if (!item.isPaid) {
+                totalOpenInvoicesThisCycle += Number(item.amount) || 0;
+                pendingCycleTransactions.push(item);
+              }
+            }
+          });
         } else {
-          const currentCycleInst = unpaid.find(t => {
-            const instNum = t.installmentNumber || 1;
-            const [y, m, d] = (first.date || t.date).split('-').map(Number);
+          // Compras parceladas: verifica as parcelas que pertencem a este ciclo ou atrasadas não pagas
+          items.forEach(inst => {
+            const instNum = inst.installmentNumber || 1;
+            const [y, m, d] = (first.date || inst.date).split('-').map(Number);
             let closingMonth = m;
             let closingYear = y;
             if (d >= closingDay) closingMonth += 1;
@@ -264,15 +272,15 @@ export const api = {
 
             const isCurrentCycle = dueMonth === targetDueMonth && dueYear === targetDueYear;
             const isPastDue = (dueYear < targetDueYear) || (dueYear === targetDueYear && dueMonth < targetDueMonth);
-            return isCurrentCycle || isPastDue;
-          });
 
-          // NUNCA fazer fallback para parcelas futuras (unpaid[0])! Apenas se for do ciclo atual ou atrasada
-          const activeInst = currentCycleInst;
-          if (activeInst && !activeInst.isPaid) {
-            totalOpenInvoicesThisCycle += Number(activeInst.amount) || 0;
-            activeCycleTransactions.push(activeInst);
-          }
+            if (isCurrentCycle || (isPastDue && !inst.isPaid)) {
+              allCycleTransactions.push(inst);
+              if (!inst.isPaid) {
+                totalOpenInvoicesThisCycle += Number(inst.amount) || 0;
+                pendingCycleTransactions.push(inst);
+              }
+            }
+          });
         }
       });
     });
@@ -290,46 +298,61 @@ export const api = {
     const totalBalance = accountsBalance + salaryRemaining;
     const monthIncome = monthlySalary + otherIncome;
 
-    // Despesas por categoria deste mês: inclui desembolsos em dinheiro/pix/débito + parcelas do ciclo atual
+    // Despesas por categoria deste mês:
     // IMPORTANTE: Pagamentos de fatura ou quitações NÃO entram no gráfico de categorias para não duplicar e não inflar "Outros"!
     const isPaymentSettlement = (desc: string = '') => {
       return desc.startsWith('Pagamento Fatura') || desc.startsWith('Pagamento Parcela') || desc.startsWith('Quitação Total');
     };
 
-    const relevantExpenses = [
-      ...localTransactions.filter(t => t.type === 'EXPENSE' && t.paymentMethod !== 'CREDIT_CARD' && !isPaymentSettlement(t.description) && isCurrentMonth(t.date)),
-      ...activeCycleTransactions
-    ];
+    const nonCardMonthExpenses = localTransactions.filter(
+      t => t.type === 'EXPENSE' && t.paymentMethod !== 'CREDIT_CARD' && !isPaymentSettlement(t.description) && isCurrentMonth(t.date)
+    );
 
-    const categoryTotals: Record<string, { name: string; color: string; amount: number }> = {};
-    for (const t of relevantExpenses) {
-      const catId = t.category?.id || (t as any).categoryId;
-      const cat = localCategories.find(c => c.id === catId) || t.category;
-      const catName = cat?.name || 'Outros';
-      const catColor = cat?.color || '#94A3B8';
-      const amt = Number(t.amount) || 0;
+    const buildCategoryBreakdown = (txList: Transaction[]) => {
+      const categoryTotals: Record<string, { name: string; color: string; amount: number }> = {};
+      for (const t of txList) {
+        const catId = t.category?.id || (t as any).categoryId;
+        const cat = localCategories.find(c => c.id === catId) || t.category;
+        const catName = cat?.name || 'Outros';
+        const catColor = cat?.color || '#94A3B8';
+        const amt = Number(t.amount) || 0;
 
-      if (!categoryTotals[catName]) {
-        categoryTotals[catName] = { name: catName, color: catColor, amount: 0 };
+        if (!categoryTotals[catName]) {
+          categoryTotals[catName] = { name: catName, color: catColor, amount: 0 };
+        }
+        categoryTotals[catName].amount += amt;
       }
-      categoryTotals[catName].amount += amt;
-    }
 
-    const totalCatAmount = Object.values(categoryTotals).reduce((acc, c) => acc + c.amount, 0);
-    const categoryExpenses = Object.values(categoryTotals).map(item => ({
-      name: item.name,
-      color: item.color,
-      amount: item.amount,
-      percentage: totalCatAmount > 0 ? (item.amount / totalCatAmount) * 100 : 0
-    }));
+      const totalCatAmount = Object.values(categoryTotals).reduce((acc, c) => acc + c.amount, 0);
+      return Object.values(categoryTotals).map(item => ({
+        name: item.name,
+        color: item.color,
+        amount: item.amount,
+        percentage: totalCatAmount > 0 ? (item.amount / totalCatAmount) * 100 : 0
+      })).sort((a, b) => b.amount - a.amount);
+    };
+
+    // 1) Total Gasto no Mês (Geral: compras do ciclo pagas ou não + saídas de dinheiro/pix/débito)
+    const categoryExpenses = buildCategoryBreakdown([
+      ...nonCardMonthExpenses,
+      ...allCycleTransactions
+    ]);
+
+    // 2) A Pagar / Restante (Apenas despesas e faturas ainda pendentes)
+    const categoryExpensesPending = buildCategoryBreakdown([
+      ...nonCardMonthExpenses.filter(t => !t.isPaid),
+      ...pendingCycleTransactions
+    ]);
 
     return {
       totalBalance,
       monthlySalary,
+      salaryRemaining,
       monthIncome,
       monthExpense,
       openInvoicesTotal,
-      categoryExpenses
+      categoryExpenses,
+      categoryExpensesPending
     };
   },
 
