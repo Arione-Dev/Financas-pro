@@ -8,6 +8,7 @@ import { ReceiptScanModal } from './components/ReceiptScanModal';
 import { NewTransactionModal } from './components/NewTransactionModal';
 import { EditAccountModal } from './components/EditAccountModal';
 import { AuthView } from './components/AuthView';
+import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { api } from './services/api';
 import { DashboardSummary, Transaction, Account, CreditCard, Category, User } from './types';
 
@@ -178,11 +179,14 @@ export const App: React.FC = () => {
   // Se não estiver logado, exibe a Tela de Login e Cadastro
   if (!currentUser) {
     return (
-      <AuthView
-        onLoginSuccess={handleLoginSuccess}
-        theme={theme}
-        onToggleTheme={handleToggleTheme}
-      />
+      <>
+        <AuthView
+          onLoginSuccess={handleLoginSuccess}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
+        />
+        <PwaInstallBanner />
+      </>
     );
   }
 
@@ -311,6 +315,9 @@ export const App: React.FC = () => {
         initialSalary={summary.monthlySalary || 3500}
         initialMode={editAccountModalMode}
       />
+
+      {/* Banner Automático de Instalação do PWA */}
+      <PwaInstallBanner />
 
     </div>
   );
