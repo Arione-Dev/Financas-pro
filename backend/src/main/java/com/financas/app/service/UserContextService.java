@@ -20,6 +20,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class UserContextService {
 
     private final HttpServletRequest request;
@@ -105,3 +106,4 @@ public class UserContextService {
         return null;
     }
 }
+
