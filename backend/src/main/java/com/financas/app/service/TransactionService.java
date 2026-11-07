@@ -28,6 +28,7 @@ public class TransactionService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final InstallmentService installmentService;
+    private final UserContextService userContextService;
 
     private UUID parseUuidSafely(String val) {
         if (val == null || val.isBlank()) return null;
@@ -40,13 +41,17 @@ public class TransactionService {
 
     @Transactional
     public List<Transaction> createTransaction(TransactionCreateRequest req) {
-        UUID userUuid = parseUuidSafely(req.userId());
-        User user = (userUuid != null)
-                ? userRepository.findById(userUuid).orElse(null)
-                : null;
+        User user = userContextService.getCurrentUser();
         if (user == null) {
-            user = userRepository.findAll().stream().findFirst().orElseGet(this::createDefaultUser);
+            UUID userUuid = parseUuidSafely(req.userId());
+            if (userUuid != null) {
+                user = userRepository.findById(userUuid).orElse(null);
+            }
         }
+        if (user == null) {
+            return List.of();
+        }
+        final UUID currentUserId = user.getId();
 
         UUID catUuid = parseUuidSafely(req.categoryId());
         Category category = (catUuid != null)
@@ -61,11 +66,12 @@ public class TransactionService {
             UUID cardUuid = parseUuidSafely(req.creditCardId());
             CreditCard card = null;
             if (cardUuid != null) {
-                card = creditCardRepository.findById(cardUuid).orElse(null);
+                card = creditCardRepository.findById(cardUuid)
+                        .filter(c -> c.getUser() != null && c.getUser().getId().equals(currentUserId))
+                        .orElse(null);
             }
             if (card == null) {
-                card = creditCardRepository.findByUserIdAndIsActiveTrue(user.getId()).stream().findFirst()
-                        .orElseGet(() -> creditCardRepository.findAll().stream().findFirst().orElse(null));
+                card = creditCardRepository.findByUserIdAndIsActiveTrue(currentUserId).stream().findFirst().orElse(null);
             }
             if (card == null) {
                 card = creditCardRepository.save(CreditCard.builder()
@@ -131,7 +137,9 @@ public class TransactionService {
         UUID accUuid = parseUuidSafely(req.accountId());
         Account account = null;
         if (accUuid != null) {
-            account = accountRepository.findById(accUuid).orElse(null);
+            account = accountRepository.findById(accUuid)
+                    .filter(a -> a.getUser() != null && a.getUser().getId().equals(currentUserId))
+                    .orElse(null);
         }
 
         if (account != null && req.amount() != null) {

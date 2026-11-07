@@ -4,8 +4,9 @@ import com.financas.app.domain.Account;
 import com.financas.app.domain.User;
 import com.financas.app.domain.enums.AccountType;
 import com.financas.app.repository.AccountRepository;
-import com.financas.app.repository.UserRepository;
+import com.financas.app.service.UserContextService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,11 +21,11 @@ import java.util.UUID;
 public class AccountController {
 
     private final AccountRepository accountRepository;
-    private final UserRepository userRepository;
+    private final UserContextService userContextService;
 
     @GetMapping
     public ResponseEntity<List<Account>> listAccounts() {
-        User user = userRepository.findAll().stream().findFirst().orElse(null);
+        User user = userContextService.getCurrentUser();
         if (user == null) {
             return ResponseEntity.ok(List.of());
         }
@@ -34,8 +35,8 @@ public class AccountController {
                     .user(user)
                     .name("Conta Principal")
                     .type(AccountType.CHECKING)
-                    .initialBalance(new BigDecimal("1000.00"))
-                    .currentBalance(new BigDecimal("1000.00"))
+                    .initialBalance(BigDecimal.ZERO)
+                    .currentBalance(BigDecimal.ZERO)
                     .color("#8A05BE")
                     .isActive(true)
                     .build();
@@ -46,8 +47,10 @@ public class AccountController {
 
     @PostMapping
     public ResponseEntity<Account> createAccount(@RequestBody Account account) {
-        User user = userRepository.findAll().stream().findFirst().orElseGet(() ->
-                userRepository.save(User.builder().name("Usuário").email("user@financas.app").build()));
+        User user = userContextService.getCurrentUser();
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         account.setUser(user);
         if (account.getCurrentBalance() == null) {
             account.setCurrentBalance(account.getInitialBalance() != null ? account.getInitialBalance() : BigDecimal.ZERO);
@@ -60,23 +63,35 @@ public class AccountController {
 
     @PatchMapping("/{id}")
     public ResponseEntity<Account> updateAccountBalance(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
-        return accountRepository.findById(id).map(acc -> {
-            if (body.containsKey("currentBalance")) {
-                acc.setCurrentBalance(new BigDecimal(body.get("currentBalance").toString()));
-            }
-            if (body.containsKey("name")) {
-                acc.setName((String) body.get("name"));
-            }
-            return ResponseEntity.ok(accountRepository.save(acc));
-        }).orElse(ResponseEntity.notFound().build());
+        User user = userContextService.getCurrentUser();
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return accountRepository.findById(id)
+                .filter(acc -> acc.getUser() != null && acc.getUser().getId().equals(user.getId()))
+                .map(acc -> {
+                    if (body.containsKey("currentBalance")) {
+                        acc.setCurrentBalance(new BigDecimal(body.get("currentBalance").toString()));
+                    }
+                    if (body.containsKey("name")) {
+                        acc.setName((String) body.get("name"));
+                    }
+                    return ResponseEntity.ok(accountRepository.save(acc));
+                }).orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAccount(@PathVariable UUID id) {
-        accountRepository.findById(id).ifPresent(acc -> {
-            acc.setIsActive(false);
-            accountRepository.save(acc);
-        });
+        User user = userContextService.getCurrentUser();
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        accountRepository.findById(id)
+                .filter(acc -> acc.getUser() != null && acc.getUser().getId().equals(user.getId()))
+                .ifPresent(acc -> {
+                    acc.setIsActive(false);
+                    accountRepository.save(acc);
+                });
         return ResponseEntity.noContent().build();
     }
 }

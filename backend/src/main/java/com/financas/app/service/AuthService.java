@@ -100,24 +100,15 @@ public class AuthService {
     }
 
     private void seedUserDefaults(User user) {
-        // Conta Principal
+        // Conta Principal iniciando zerada (R$ 0,00) para cada novo usuário
         accountRepository.save(Account.builder()
                 .user(user)
                 .name("Conta Principal")
                 .type(AccountType.CHECKING)
-                .initialBalance(new BigDecimal("1000.00"))
-                .currentBalance(new BigDecimal("1000.00"))
+                .initialBalance(BigDecimal.ZERO)
+                .currentBalance(BigDecimal.ZERO)
                 .color("#8A05BE")
-                .build());
-
-        // Cartão de Crédito Padrão
-        creditCardRepository.save(CreditCard.builder()
-                .user(user)
-                .name("Cartão Principal")
-                .limitTotal(new BigDecimal("5000.00"))
-                .closingDay(25)
-                .dueDay(5)
-                .color("#4F46E5")
+                .isActive(true)
                 .build());
 
         // Categorias padrão

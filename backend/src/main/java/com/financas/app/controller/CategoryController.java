@@ -4,7 +4,7 @@ import com.financas.app.domain.Category;
 import com.financas.app.domain.User;
 import com.financas.app.domain.enums.TransactionType;
 import com.financas.app.repository.CategoryRepository;
-import com.financas.app.repository.UserRepository;
+import com.financas.app.service.UserContextService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +18,11 @@ import java.util.UUID;
 public class CategoryController {
 
     private final CategoryRepository categoryRepository;
-    private final UserRepository userRepository;
+    private final UserContextService userContextService;
 
     @GetMapping
     public ResponseEntity<List<Category>> listCategories() {
-        User user = userRepository.findAll().stream().findFirst().orElse(null);
+        User user = userContextService.getCurrentUser();
         UUID userId = user != null ? user.getId() : UUID.randomUUID();
         syncDefaultCategories();
         List<Category> list = categoryRepository.findByUserIdOrGlobal(userId);

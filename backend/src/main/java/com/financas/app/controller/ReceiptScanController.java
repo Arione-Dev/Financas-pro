@@ -5,9 +5,9 @@ import com.financas.app.domain.User;
 import com.financas.app.dto.response.QuotaStatusResponse;
 import com.financas.app.dto.response.ReceiptAnalysisResponse;
 import com.financas.app.repository.ReceiptLogRepository;
-import com.financas.app.repository.UserRepository;
 import com.financas.app.service.GeminiVisionService;
 import com.financas.app.service.RateLimiterService;
+import com.financas.app.service.UserContextService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,7 +26,7 @@ public class ReceiptScanController {
     private final RateLimiterService rateLimiterService;
     private final GeminiVisionService geminiVisionService;
     private final ReceiptLogRepository receiptLogRepository;
-    private final UserRepository userRepository;
+    private final UserContextService userContextService;
 
     /**
      * Endpoint para o PWA consultar o status da cota (quantos tokens restam e se tem cronômetro ativo).
@@ -63,15 +63,16 @@ public class ReceiptScanController {
             ReceiptAnalysisResponse analysis = geminiVisionService.analyzeReceipt(bytes, contentType);
 
             // 3. Salva auditoria no banco
-            userRepository.findAll().stream().findFirst().ifPresent(user -> {
+            User currentUser = userContextService.getCurrentUser();
+            if (currentUser != null) {
                 ReceiptLog logEntry = ReceiptLog.builder()
-                        .user(user)
+                        .user(currentUser)
                         .filename(file.getOriginalFilename())
                         .extractedData(analysis.rawJson())
                         .status("SUCCESS")
                         .build();
                 receiptLogRepository.save(logEntry);
-            });
+            }
 
             return ResponseEntity.ok(analysis);
 

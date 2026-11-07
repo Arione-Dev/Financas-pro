@@ -24,12 +24,75 @@ const initialAccounts: Account[] = [
   { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 0.00, color: '#8A05BE' }
 ];
 
-const initialCards: CreditCard[] = [
-  { id: 'card-1', name: 'Nubank Roxinho', bank: 'nubank', limitTotal: 5000, closingDay: 25, dueDay: 5, color: '#820AD1' }
-];
+function getCurrentUserInternal(): User | null {
+  const saved = localStorage.getItem('auth_user');
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return null;
+  }
+}
 
-let localAccounts: Account[] = getStored<Account[]>('financas_accounts', initialAccounts);
-let localCards: CreditCard[] = getStored<CreditCard[]>('financas_cards', initialCards);
+function getUserScope(): string {
+  const u = getCurrentUserInternal();
+  if (!u) return 'guest';
+  return String(u.id || u.email || 'guest').toLowerCase().trim();
+}
+
+function userKey(base: string): string {
+  return `${base}_${getUserScope()}`;
+}
+
+function getAuthHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const u = getCurrentUserInternal();
+  const headers: Record<string, string> = { ...extra };
+  if (u) {
+    if (u.id) headers['X-User-Id'] = String(u.id);
+    if (u.email) headers['X-User-Email'] = String(u.email);
+    if (u.name) headers['X-User-Name'] = String(u.name);
+    if ((u as any).token) headers['Authorization'] = `Bearer ${(u as any).token}`;
+  }
+  return headers;
+}
+
+let localAccounts: Account[] = [];
+let localCards: CreditCard[] = [];
+let localTransactions: Transaction[] = [];
+
+function reloadLocalStateForCurrentUser(): void {
+  // Remove chaves globais antigas sem escopo de usuário para evitar vazamento entre contas no mesmo aparelho
+  try {
+    localStorage.removeItem('financas_transactions');
+    localStorage.removeItem('financas_accounts');
+    localStorage.removeItem('financas_cards');
+  } catch (e) {}
+
+  const u = getCurrentUserInternal();
+  if (!u) {
+    localAccounts = [];
+    localCards = [];
+    localTransactions = [];
+    return;
+  }
+
+  localAccounts = getStored<Account[]>(userKey('financas_accounts'), initialAccounts);
+  localCards = getStored<CreditCard[]>(userKey('financas_cards'), []);
+  localTransactions = getStored<Transaction[]>(userKey('financas_transactions'), []);
+
+  const scopedSalaryKey = userKey('financas_monthly_salary');
+  if (localStorage.getItem(scopedSalaryKey) === null) {
+    const isArione = String(u.email || '').toLowerCase().includes('arione') || String(u.name || '').toLowerCase().includes('arione');
+    const oldGlobalSalary = localStorage.getItem('financas_monthly_salary');
+    if (isArione && oldGlobalSalary !== null) {
+      localStorage.setItem(scopedSalaryKey, oldGlobalSalary);
+    } else {
+      setStored(scopedSalaryKey, 0.00);
+    }
+  }
+}
+
+reloadLocalStateForCurrentUser();
 
 let localCategories: Category[] = [
   { id: 'cat-alimentacao', name: 'Alimentação', icon: 'utensils', color: '#F59E0B', type: 'EXPENSE' },
@@ -48,43 +111,31 @@ let localCategories: Category[] = [
   { id: 'cat-investimentos', name: 'Investimentos', icon: 'trending-up', color: '#4F46E5', type: 'INCOME' }
 ];
 
-let localTransactions: Transaction[] = getStored<Transaction[]>('financas_transactions', []);
-
 export const api = {
   async register(name: string, email: string, password: string): Promise<any> {
-    try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Erro no cadastro.');
-      localStorage.setItem('auth_user', JSON.stringify(data));
-      return data;
-    } catch (e: any) {
-      const mock = { id: 'u-' + Date.now(), name, email, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}` };
-      localStorage.setItem('auth_user', JSON.stringify(mock));
-      return mock;
-    }
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Erro no cadastro.');
+    localStorage.setItem('auth_user', JSON.stringify(data));
+    reloadLocalStateForCurrentUser();
+    return data;
   },
 
   async login(email: string, password: string): Promise<any> {
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'E-mail ou senha incorretos.');
-      localStorage.setItem('auth_user', JSON.stringify(data));
-      return data;
-    } catch (e: any) {
-      const mock = { id: 'u-1', name: 'Arione (Principal)', email, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}` };
-      localStorage.setItem('auth_user', JSON.stringify(mock));
-      return mock;
-    }
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'E-mail ou senha incorretos.');
+    localStorage.setItem('auth_user', JSON.stringify(data));
+    reloadLocalStateForCurrentUser();
+    return data;
   },
 
   async loginWithGoogle(payload: { email: string; name: string; googleId: string; avatarUrl: string }): Promise<any> {
@@ -96,10 +147,12 @@ export const api = {
       });
       const data = await res.json();
       localStorage.setItem('auth_user', JSON.stringify(data));
+      reloadLocalStateForCurrentUser();
       return data;
     } catch (e) {
       const mock = { id: 'u-' + Date.now(), name: payload.name, email: payload.email, avatarUrl: payload.avatarUrl };
       localStorage.setItem('auth_user', JSON.stringify(mock));
+      reloadLocalStateForCurrentUser();
       return mock;
     }
   },
@@ -109,34 +162,32 @@ export const api = {
   },
 
   getCurrentUser(): User | null {
-    const saved = localStorage.getItem('auth_user');
-    if (!saved) return null;
-    try {
-      return JSON.parse(saved);
-    } catch {
-      return null;
-    }
+    return getCurrentUserInternal();
   },
 
   logout(): void {
     localStorage.removeItem('auth_user');
+    reloadLocalStateForCurrentUser();
   },
 
   async resetAllFinancialData(): Promise<void> {
     try {
-      await fetch(`${API_BASE}/dashboard/reset-all`, { method: 'POST' });
+      await fetch(`${API_BASE}/dashboard/reset-all`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
     } catch (e) {}
     localTransactions = [];
     localAccounts = [
       { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 0.00, color: '#8A05BE' }
     ];
-    setStored('financas_transactions', []);
-    setStored('financas_accounts', localAccounts);
-    setStored('financas_monthly_salary', 0.00);
+    setStored(userKey('financas_transactions'), []);
+    setStored(userKey('financas_accounts'), localAccounts);
+    setStored(userKey('financas_monthly_salary'), 0.00);
   },
 
   getMonthlySalary(): number {
-    return getStored<number>('financas_monthly_salary', 0.00);
+    return getStored<number>(userKey('financas_monthly_salary'), 0.00);
   },
 
   getSalaryExpenses(): number {
@@ -160,7 +211,7 @@ export const api = {
   },
 
   setMonthlySalary(salary: number): number {
-    setStored('financas_monthly_salary', salary);
+    setStored(userKey('financas_monthly_salary'), salary);
     return salary;
   },
 
@@ -371,29 +422,33 @@ export const api = {
 
   async getTransactions(): Promise<Transaction[]> {
     try {
-      const res = await fetch(`${API_BASE}/transactions`);
+      const res = await fetch(`${API_BASE}/transactions`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           localTransactions = this.deduplicateTransactions(data);
-          setStored('financas_transactions', localTransactions);
+          setStored(userKey('financas_transactions'), localTransactions);
           return localTransactions;
         }
       }
     } catch (e) {}
     localTransactions = this.deduplicateTransactions(localTransactions);
-    setStored('financas_transactions', localTransactions);
+    setStored(userKey('financas_transactions'), localTransactions);
     return localTransactions;
   },
 
   async getAccounts(): Promise<Account[]> {
     try {
-      const res = await fetch(`${API_BASE}/accounts`);
+      const res = await fetch(`${API_BASE}/accounts`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           localAccounts = data;
-          setStored('financas_accounts', localAccounts);
+          setStored(userKey('financas_accounts'), localAccounts);
           return data;
         }
       }
@@ -404,7 +459,7 @@ export const api = {
       localAccounts = [
         { id: 'acc-1', name: 'Conta Principal', type: 'CHECKING', currentBalance: 0, color: '#8A05BE' }
       ];
-      setStored('financas_accounts', localAccounts);
+      setStored(userKey('financas_accounts'), localAccounts);
     }
     return localAccounts;
   },
@@ -413,13 +468,13 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/accounts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(data)
       });
       if (res.ok) {
         const created = await res.json();
         localAccounts.push(created);
-        setStored('financas_accounts', localAccounts);
+        setStored(userKey('financas_accounts'), localAccounts);
         return created;
       }
     } catch (e) {}
@@ -432,26 +487,31 @@ export const api = {
       color: data.color || '#3B82F6'
     };
     localAccounts.push(newAcc);
-    setStored('financas_accounts', localAccounts);
+    setStored(userKey('financas_accounts'), localAccounts);
     return newAcc;
   },
 
   async deleteAccount(accountId: string): Promise<void> {
     try {
-      await fetch(`${API_BASE}/accounts/${accountId}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/accounts/${accountId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
     } catch (e) {}
     localAccounts = localAccounts.filter(a => a.id !== accountId);
-    setStored('financas_accounts', localAccounts);
+    setStored(userKey('financas_accounts'), localAccounts);
   },
 
   async getCards(): Promise<CreditCard[]> {
     try {
-      const res = await fetch(`${API_BASE}/cards`);
+      const res = await fetch(`${API_BASE}/cards`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           localCards = data;
-          setStored('financas_cards', localCards);
+          setStored(userKey('financas_cards'), localCards);
           return data;
         }
       }
@@ -463,13 +523,13 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/cards`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(cardData)
       });
       if (res.ok) {
         const created = await res.json();
         localCards.push(created);
-        setStored('financas_cards', localCards);
+        setStored(userKey('financas_cards'), localCards);
         return created;
       }
     } catch (e) {}
@@ -484,7 +544,7 @@ export const api = {
       color: cardData.color || '#820AD1'
     };
     localCards.push(newCard);
-    setStored('financas_cards', localCards);
+    setStored(userKey('financas_cards'), localCards);
     return newCard;
   },
 
@@ -492,14 +552,14 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/cards/${cardId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(cardData)
       });
       if (res.ok) {
         const updated = await res.json();
         const idx = localCards.findIndex(c => c.id === cardId);
         if (idx !== -1) localCards[idx] = updated;
-        setStored('financas_cards', localCards);
+        setStored(userKey('financas_cards'), localCards);
         return updated;
       }
     } catch (e) {}
@@ -510,7 +570,7 @@ export const api = {
         ...localCards[idx],
         ...cardData
       };
-      setStored('financas_cards', localCards);
+      setStored(userKey('financas_cards'), localCards);
       return localCards[idx];
     }
     return null;
@@ -518,24 +578,27 @@ export const api = {
 
   async deleteCard(cardId: string): Promise<void> {
     try {
-      await fetch(`${API_BASE}/cards/${cardId}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/cards/${cardId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
     } catch (e) {}
     localCards = localCards.filter(c => c.id !== cardId);
-    setStored('financas_cards', localCards);
+    setStored(userKey('financas_cards'), localCards);
   },
 
   async updateAccountBalance(accountId: string, newBalance: number): Promise<Account> {
     try {
       const res = await fetch(`${API_BASE}/accounts/${accountId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ currentBalance: newBalance })
       });
       if (res.ok) {
         const updated = await res.json();
         const idx = localAccounts.findIndex(a => a.id === accountId);
         if (idx !== -1) localAccounts[idx] = updated;
-        setStored('financas_accounts', localAccounts);
+        setStored(userKey('financas_accounts'), localAccounts);
         return updated;
       }
     } catch (e) {}
@@ -543,7 +606,7 @@ export const api = {
     const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
     if (acc) {
       acc.currentBalance = newBalance;
-      setStored('financas_accounts', localAccounts);
+      setStored(userKey('financas_accounts'), localAccounts);
     }
     return acc;
   },
@@ -553,7 +616,7 @@ export const api = {
       try {
         await fetch(`${API_BASE}/transactions/${id}/pay`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ accountId })
         });
       } catch (e) {}
@@ -584,7 +647,7 @@ export const api = {
       try {
         await fetch(`${API_BASE}/transactions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             description: salaryExpenseTx.description,
             amount: salaryExpenseTx.amount,
@@ -600,10 +663,10 @@ export const api = {
       const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
       if (acc) {
         acc.currentBalance = Math.max(0, acc.currentBalance - totalAmount);
-        setStored('financas_accounts', localAccounts);
+        setStored(userKey('financas_accounts'), localAccounts);
       }
     }
-    setStored('financas_transactions', localTransactions);
+    setStored(userKey('financas_transactions'), localTransactions);
   },
 
   async updatePurchase(transactionIds: string[], data: { description?: string; categoryId?: string }): Promise<void> {
@@ -612,7 +675,7 @@ export const api = {
       try {
         await fetch(`${API_BASE}/transactions/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(data)
         });
       } catch (e) {}
@@ -636,7 +699,7 @@ export const api = {
       }
       return t;
     });
-    setStored('financas_transactions', localTransactions);
+    setStored(userKey('financas_transactions'), localTransactions);
   },
 
   async updatePurchaseCategory(transactionIds: string[], categoryId: string): Promise<void> {
@@ -646,18 +709,21 @@ export const api = {
   async deleteEntirePurchase(transactionIds: string[]): Promise<void> {
     for (const id of transactionIds) {
       try {
-        await fetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/transactions/${id}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
       } catch (e) {}
     }
     localTransactions = localTransactions.filter(t => !transactionIds.includes(t.id));
-    setStored('financas_transactions', localTransactions);
+    setStored(userKey('financas_transactions'), localTransactions);
   },
 
   async payInstallment(transactionId: string, accountId: string): Promise<void> {
     try {
       await fetch(`${API_BASE}/transactions/${transactionId}/pay`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ accountId })
       });
     } catch (e) {}
@@ -683,7 +749,7 @@ export const api = {
         try {
           await fetch(`${API_BASE}/transactions`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
               description: salaryExpenseTx.description,
               amount: salaryExpenseTx.amount,
@@ -699,10 +765,10 @@ export const api = {
         const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
         if (acc) {
           acc.currentBalance = Math.max(0, acc.currentBalance - (tx.amount || 0));
-          setStored('financas_accounts', localAccounts);
+          setStored(userKey('financas_accounts'), localAccounts);
         }
       }
-      setStored('financas_transactions', localTransactions);
+      setStored(userKey('financas_transactions'), localTransactions);
     }
   },
 
@@ -721,7 +787,7 @@ export const api = {
       try {
         await fetch(`${API_BASE}/transactions/${txId}/pay`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ accountId: 'ALREADY_PAID' })
         });
       } catch (e) {}
@@ -743,7 +809,7 @@ export const api = {
       try {
         await fetch(`${API_BASE}/transactions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             description: salaryExpenseTx.description,
             amount: salaryExpenseTx.amount,
@@ -758,12 +824,12 @@ export const api = {
       const acc = localAccounts.find(a => a.id === accountId) || localAccounts[0];
       if (acc) {
         acc.currentBalance = Math.max(0, acc.currentBalance - amount);
-        setStored('financas_accounts', localAccounts);
+        setStored(userKey('financas_accounts'), localAccounts);
         try {
-          await fetch(`${API_BASE}/accounts/${acc.id}/balance`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ balance: acc.currentBalance })
+          await fetch(`${API_BASE}/accounts/${acc.id}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ currentBalance: acc.currentBalance })
           });
         } catch (e) {}
       }
@@ -777,12 +843,14 @@ export const api = {
       return t;
     });
 
-    setStored('financas_transactions', localTransactions);
+    setStored(userKey('financas_transactions'), localTransactions);
   },
 
   async getCategories(): Promise<Category[]> {
     try {
-      const res = await fetch(`${API_BASE}/categories`);
+      const res = await fetch(`${API_BASE}/categories`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) return await res.json();
     } catch (e) {}
     return localCategories;
@@ -792,7 +860,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/transactions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(data)
       });
       if (res.ok) {
@@ -846,7 +914,7 @@ export const api = {
       localTransactions.unshift(newT);
     }
 
-    setStored('financas_transactions', localTransactions);
+    setStored(userKey('financas_transactions'), localTransactions);
     return createdList;
   },
 
@@ -854,7 +922,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/transactions/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(data)
       });
       if (res.ok) {
@@ -896,7 +964,7 @@ export const api = {
         });
       }
 
-      setStored('financas_transactions', localTransactions);
+      setStored(userKey('financas_transactions'), localTransactions);
       return updatedT;
     }
     return null;
@@ -904,15 +972,20 @@ export const api = {
 
   async deleteTransaction(id: string): Promise<void> {
     try {
-      await fetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/transactions/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
     } catch (e) {}
     localTransactions = localTransactions.filter(t => t.id !== id);
-    setStored('financas_transactions', localTransactions);
+    setStored(userKey('financas_transactions'), localTransactions);
   },
 
   async getQuotaStatus(): Promise<QuotaStatus> {
     try {
-      const res = await fetch(`${API_BASE}/receipts/quota-status`);
+      const res = await fetch(`${API_BASE}/receipts/quota-status`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) return await res.json();
     } catch (e) {}
     return {
@@ -930,6 +1003,7 @@ export const api = {
 
     const res = await fetch(`${API_BASE}/receipts/scan`, {
       method: 'POST',
+      headers: getAuthHeaders(),
       body: formData
     });
 

@@ -42,12 +42,25 @@ export const App: React.FC = () => {
 
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
-    loadAllData();
+    setCurrentTab('dashboard');
+    setSelectedCardId('');
   };
 
   const handleLogout = () => {
     api.logout();
     setCurrentUser(null);
+    setSelectedCardId('');
+    setTransactions([]);
+    setAccounts([]);
+    setCards([]);
+    setSummary({
+      totalBalance: 0,
+      monthlySalary: 0,
+      monthIncome: 0,
+      monthExpense: 0,
+      openInvoicesTotal: 0,
+      categoryExpenses: []
+    });
   };
 
   const [isScanModalOpen, setIsScanModalOpen] = useState<boolean>(false);
@@ -72,18 +85,22 @@ export const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    loadAllData();
-  }, []);
+    if (currentUser) {
+      loadAllData();
+    } else {
+      setLoading(false);
+    }
+  }, [currentUser?.id, currentUser?.email]);
 
   const loadAllData = async () => {
     try {
-      const [sum, txs, accs, crds, cats] = await Promise.all([
-        api.getSummary(),
+      const [txs, accs, crds, cats] = await Promise.all([
         api.getTransactions(),
         api.getAccounts(),
         api.getCards(),
         api.getCategories()
       ]);
+      const sum = await api.getSummary();
       setSummary(sum);
       setTransactions(txs);
       setAccounts(accs);

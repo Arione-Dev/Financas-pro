@@ -9,6 +9,7 @@ import com.financas.app.domain.enums.InvoiceStatus;
 import com.financas.app.domain.enums.TransactionType;
 import com.financas.app.dto.response.DashboardSummaryResponse;
 import com.financas.app.repository.*;
+import com.financas.app.service.UserContextService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,11 +33,11 @@ public class DashboardController {
     private final TransactionRepository transactionRepository;
     private final InvoiceRepository invoiceRepository;
     private final CreditCardRepository creditCardRepository;
-    private final UserRepository userRepository;
+    private final UserContextService userContextService;
 
     @GetMapping("/summary")
     public ResponseEntity<DashboardSummaryResponse> getSummary() {
-        User user = userRepository.findAll().stream().findFirst().orElse(null);
+        User user = userContextService.getCurrentUser();
         if (user == null) {
             return ResponseEntity.ok(new DashboardSummaryResponse(
                     BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, List.of()));
@@ -118,7 +119,7 @@ public class DashboardController {
 
     @PostMapping("/reset-all")
     public ResponseEntity<Map<String, String>> resetAllData() {
-        User user = userRepository.findAll().stream().findFirst().orElse(null);
+        User user = userContextService.getCurrentUser();
         if (user != null) {
             UUID userId = user.getId();
             // 1. Apaga todas as transações do usuário
