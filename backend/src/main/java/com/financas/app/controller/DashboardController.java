@@ -84,6 +84,10 @@ public class DashboardController {
 
         for (Transaction t : monthTransactions) {
             if (t.getType() == TransactionType.EXPENSE && t.getCategory() != null) {
+                String desc = t.getDescription() != null ? t.getDescription() : "";
+                if (desc.startsWith("Pagamento Fatura") || desc.startsWith("Pagamento Parcela") || desc.startsWith("Quitação Total")) {
+                    continue;
+                }
                 String catName = t.getCategory().getName();
                 byCategory.merge(catName, t.getAmount(), BigDecimal::add);
                 categoryColors.putIfAbsent(catName, t.getCategory().getColor());

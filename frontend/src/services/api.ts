@@ -266,8 +266,13 @@ export const api = {
     const monthIncome = monthlySalary + otherIncome;
 
     // Despesas por categoria deste mês: inclui desembolsos em dinheiro/pix/débito + parcelas do ciclo atual
+    // IMPORTANTE: Pagamentos de fatura ou quitações NÃO entram no gráfico de categorias para não duplicar e não inflar "Outros"!
+    const isPaymentSettlement = (desc: string = '') => {
+      return desc.startsWith('Pagamento Fatura') || desc.startsWith('Pagamento Parcela') || desc.startsWith('Quitação Total');
+    };
+
     const relevantExpenses = [
-      ...localTransactions.filter(t => t.type === 'EXPENSE' && t.paymentMethod !== 'CREDIT_CARD' && isCurrentMonth(t.date)),
+      ...localTransactions.filter(t => t.type === 'EXPENSE' && t.paymentMethod !== 'CREDIT_CARD' && !isPaymentSettlement(t.description) && isCurrentMonth(t.date)),
       ...activeCycleTransactions
     ];
 
