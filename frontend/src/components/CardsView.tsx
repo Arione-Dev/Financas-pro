@@ -19,7 +19,7 @@ interface CardsViewProps {
   onAddCard: (card: Partial<CreditCard>) => void;
   onDeleteCard: (cardId: string) => void;
   onUpdateCard?: (cardId: string, cardData: Partial<CreditCard>) => void;
-  onPayInvoice: (cardId: string, accountId: string, amount: number) => void;
+  onPayInvoice: (cardId: string, accountId: string, amount: number, transactionIds?: string[]) => void;
   onPayInstallment?: (transactionId: string, accountId: string) => void;
   onDeleteTransaction?: (transactionId: string) => void;
   onPayEntirePurchase?: (transactionIds: string[], accountId: string, totalAmount: number) => void;
@@ -910,7 +910,12 @@ export const CardsView: React.FC<CardsViewProps> = ({
         <PayInvoiceModal
           isOpen={isPayModalOpen}
           onClose={() => setIsPayModalOpen(false)}
-          onConfirm={(accountId) => onPayInvoice(selectedCard.id, accountId, currentInvoiceTotal)}
+          onConfirm={(accountId) => onPayInvoice(
+            selectedCard.id, 
+            accountId, 
+            currentInvoiceTotal, 
+            currentInvoiceTransactions.map(t => t.id)
+          )}
           card={selectedCard}
           invoiceAmount={currentInvoiceTotal}
           accounts={accounts}

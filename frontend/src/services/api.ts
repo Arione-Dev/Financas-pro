@@ -653,16 +653,27 @@ export const api = {
     }
   },
 
-  async payInvoice(cardId: string, accountId: string, amount: number, invoiceId: string = 'inv-atual'): Promise<void> {
-    try {
-      await fetch(`${API_BASE}/cards/${cardId}/invoices/${invoiceId}/pay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, amount })
-      });
-    } catch (e) {}
-
+  async payInvoice(cardId: string, accountId: string, amount: number, transactionIds?: string[]): Promise<void> {
     const card = localCards.find(c => c.id === cardId);
+
+    // Se recebeu os IDs específicos das parcelas/contas deste ciclo, dá baixa apenas nelas
+    const idsToPay = transactionIds && transactionIds.length > 0
+      ? transactionIds
+      : localTransactions
+          .filter(t => t.paymentMethod === 'CREDIT_CARD' && (t.creditCard?.id === cardId || (t as any).creditCardId === cardId) && !t.isPaid)
+          .map(t => t.id);
+
+    // No backend, marca apenas essas parcelas específicas como pagas
+    for (const txId of idsToPay) {
+      try {
+        await fetch(`${API_BASE}/transactions/${txId}/pay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId: 'ALREADY_PAID' })
+        });
+      } catch (e) {}
+    }
+
     if (accountId === 'SALARIO') {
       const salaryExpenseTx: Transaction = {
         id: 'tx-pay-salario-invoice-' + Date.now(),
@@ -695,12 +706,19 @@ export const api = {
       if (acc) {
         acc.currentBalance = Math.max(0, acc.currentBalance - amount);
         setStored('financas_accounts', localAccounts);
+        try {
+          await fetch(`${API_BASE}/accounts/${acc.id}/balance`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ balance: acc.currentBalance })
+          });
+        } catch (e) {}
       }
     }
 
-    // Marca as transações em aberto deste cartão como PAGAS (dando baixa nas parcelas da fatura)
+    // Marca APENAS as transações desta fatura do mês como PAGAS
     localTransactions = localTransactions.map(t => {
-      if (t.paymentMethod === 'CREDIT_CARD' && (t.creditCard?.id === cardId || (t as any).creditCardId === cardId)) {
+      if (idsToPay.includes(t.id)) {
         return { ...t, isPaid: true };
       }
       return t;

@@ -135,8 +135,8 @@ export const App: React.FC = () => {
     await loadAllData();
   };
 
-  const handlePayInvoice = async (cardId: string, accountId: string, amount: number) => {
-    await api.payInvoice(cardId, accountId, amount);
+  const handlePayInvoice = async (cardId: string, accountId: string, amount: number, transactionIds?: string[]) => {
+    await api.payInvoice(cardId, accountId, amount, transactionIds);
     await loadAllData();
   };
 
