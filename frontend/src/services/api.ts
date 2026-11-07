@@ -200,7 +200,12 @@ export const api = {
       cardTxs.forEach(t => {
         const match = t.description.match(/^(.*?)(?:\s*\(\d+\/\d+\))?$/);
         const baseName = match && match[1] ? match[1].trim() : t.description;
-        const groupKey = t.installmentGroupId || `${baseName}__${t.totalInstallments || 1}`;
+        const isInstallment = (t.totalInstallments && t.totalInstallments > 1) || (t.installmentNumber && t.installmentNumber > 1);
+        const groupKey = t.installmentGroupId 
+          ? t.installmentGroupId 
+          : isInstallment 
+            ? `${baseName.toLowerCase()}__${t.totalInstallments}` 
+            : `single_${t.id}`;
         if (!groupsMap.has(groupKey)) groupsMap.set(groupKey, []);
         groupsMap.get(groupKey)!.push(t);
       });
@@ -224,8 +229,24 @@ export const api = {
         if (unpaid.length === 0) return;
 
         if (items.length === 1 && (!first.totalInstallments || first.totalInstallments <= 1)) {
-          totalOpenInvoicesThisCycle += Number(first.amount) || 0;
-          activeCycleTransactions.push(first);
+          // Compra à vista: inclui apenas se pertencer ao ciclo atual ou for atrasada
+          const [y, m, d] = (first.date).split('-').map(Number);
+          let closingMonth = m;
+          let closingYear = y;
+          if (d >= closingDay) closingMonth += 1;
+          while (closingMonth > 12) { closingMonth -= 12; closingYear += 1; }
+          let dueMonth = closingMonth;
+          let dueYear = closingYear;
+          if (dueDay < closingDay) dueMonth += 1;
+          while (dueMonth > 12) { dueMonth -= 12; dueYear += 1; }
+
+          const isCurrentCycle = dueMonth === targetDueMonth && dueYear === targetDueYear;
+          const isPastDue = (dueYear < targetDueYear) || (dueYear === targetDueYear && dueMonth < targetDueMonth);
+
+          if (isCurrentCycle || isPastDue) {
+            totalOpenInvoicesThisCycle += Number(first.amount) || 0;
+            activeCycleTransactions.push(first);
+          }
         } else {
           const currentCycleInst = unpaid.find(t => {
             const instNum = t.installmentNumber || 1;

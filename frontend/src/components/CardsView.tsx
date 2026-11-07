@@ -188,8 +188,14 @@ export const CardsView: React.FC<CardsViewProps> = ({
       const match = t.description.match(/^(.*?)(?:\s*\(\d+\/\d+\))?$/);
       const baseName = match && match[1] ? match[1].trim() : t.description;
       
-      // Agrupa por installmentGroupId ou por nome base + total de parcelas
-      const groupKey = t.installmentGroupId || `${baseName}__${t.totalInstallments || 1}`;
+      // Agrupa por installmentGroupId ou por nome base + total de parcelas (apenas se for parcelamento!)
+      // Compras à vista (totalInstallments <= 1) são compras individuais e únicas
+      const isInstallment = (t.totalInstallments && t.totalInstallments > 1) || (t.installmentNumber && t.installmentNumber > 1);
+      const groupKey = t.installmentGroupId 
+        ? t.installmentGroupId 
+        : isInstallment 
+          ? `${baseName.toLowerCase()}__${t.totalInstallments}` 
+          : `single_${t.id}`;
       
       if (!groupsMap.has(groupKey)) {
         groupsMap.set(groupKey, []);
@@ -229,6 +235,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
       const title = match && match[1] ? match[1].trim() : first.description;
       
       const totalInstallments = first.totalInstallments || items.length;
+      const isInstallment = (first.totalInstallments != null && first.totalInstallments > 1) || (first.installmentNumber != null && first.installmentNumber > 1);
       const totalAmount = items.reduce((acc, t) => acc + (t.amount || 0), 0);
       const paidItems = items.filter(t => t.isPaid);
       const unpaidItems = items.filter(t => !t.isPaid);
@@ -277,7 +284,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
         activeInstallment,
         nextFutureInst,
         items,
-        hasMultipleInstallments: totalInstallments > 1 || items.length > 1
+        hasMultipleInstallments: isInstallment
       });
     });
 
